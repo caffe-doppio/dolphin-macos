@@ -184,7 +184,13 @@ int main(int argc, char **argv)
 #ifdef FLATPAK
         KDBusService dolphinDBusService(KDBusService::NoExitOnFailure);
 #else
-        KDBusService dolphinDBusService;
+        // Like the regular startup path below, tolerate the absence of a session bus so that
+        // `--daemon` does not abort immediately on platforms without one (e.g. macOS).
+        KDBusService::StartupOptions serviceOptions = KDBusService::Multiple;
+        if (!QDBusConnection::sessionBus().isConnected()) {
+            serviceOptions |= KDBusService::NoExitOnFailure;
+        }
+        KDBusService dolphinDBusService(serviceOptions);
 #endif
         DBusInterface interface;
         interface.setAsDaemon();

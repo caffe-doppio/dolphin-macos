@@ -552,7 +552,49 @@ generate_and_install_dbus_interface(
     OPTIONS -a
 )
 
-install(TARGETS dolphin ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
+if(APPLE)
+    # Build Dolphin as a self-contained .app bundle. On macOS a bare executable in
+    # ${KDE_INSTALL_FULL_BINDIR} is not launchable from Finder and cannot carry an icon
+    # or a document-type association, so the bundle is the only sane install target.
+    #
+    # These must be set as TARGET properties, not as directory-scope variables: Qt's
+    # _qt_internal_set_apple_bundle_identifier()/_qt_internal_set_placeholder_apple_bundle_version()
+    # read them off the target and otherwise synthesise an Info.plist with empty
+    # CFBundleIdentifier/CFBundleVersion, which macOS rejects.
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/dolphin.app.in/Contents/Info.plist.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/dolphin.app/Contents/Info.plist"
+        @ONLY
+    )
+
+    set_target_properties(dolphin PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_EXECUTABLE_NAME dolphin
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/dolphin.app/Contents/Info.plist"
+        MACOSX_BUNDLE_BUNDLE_NAME "Dolphin"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${RELEASE_SERVICE_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${RELEASE_SERVICE_VERSION}"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "org.kde.dolphin"
+    )
+
+    # Bundle the freedesktop .desktop file as well: KF6 KService and KIO lookups
+    # (org.kde.kfind, konsole, Discover, kdeconnect) resolve through it on every platform,
+    # so dropping it entirely would silently disable those "open with" actions on macOS.
+    #
+    # Install the whole bundle target (not just the binary): CMake would otherwise create an
+    # empty dolphin.app at the install root for the stray Resources install below, and the real
+    # bundle built by MACOSX_BUNDLE would never be copied anywhere.
+    install(TARGETS dolphin
+        BUNDLE  DESTINATION .
+        RUNTIME DESTINATION "${KDE_INSTALL_BINDIR}"
+    )
+
+    install(FILES org.kde.dolphin.desktop
+        DESTINATION dolphin.app/Contents/Resources
+    )
+else()
+    install(TARGETS dolphin ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
+endif()
 
 ##########################################
 
@@ -607,7 +649,10 @@ if(NOT WIN32)
     target_link_libraries(kcm_dolphinviewmodes dolphinprivate)
     target_link_libraries(kcm_dolphingeneral dolphinprivate)
 
-    install( FILES org.kde.dolphin.appdata.xml DESTINATION ${KDE_INSTALL_METAINFODIR} )
+    # AppStream metainfo is a freedesktop.org / Software Center concept; it has no macOS counterpart.
+    if(NOT APPLE)
+        install( FILES org.kde.dolphin.appdata.xml DESTINATION ${KDE_INSTALL_METAINFODIR} )
+    endif()
 
     install(TARGETS kcm_dolphinviewmodes DESTINATION ${KDE_INSTALL_PLUGINDIR}/dolphin/kcms )
     install(TARGETS kcm_dolphingeneral DESTINATION ${KDE_INSTALL_PLUGINDIR}/dolphin/kcms )
@@ -620,13 +665,17 @@ endif()
 
 ########### install files ###############
 
-install( PROGRAMS org.kde.dolphin.desktop DESTINATION ${KDE_INSTALL_APPDIR} )
+if(NOT APPLE)
+    # The .desktop file and the kglobalaccel symlink are freedesktop.org integration points.
+    # macOS uses the Info.plist inside the .app bundle instead, installed further down.
+    install( PROGRAMS org.kde.dolphin.desktop DESTINATION ${KDE_INSTALL_APPDIR} )
 
-install( DIRECTORY DESTINATION "${KDE_INSTALL_FULL_DATAROOTDIR}/kglobalaccel" )
+    install( DIRECTORY DESTINATION "${KDE_INSTALL_FULL_DATAROOTDIR}/kglobalaccel" )
 
-install(
-    CODE "execute_process(COMMAND \"${CMAKE_COMMAND}\" -E create_symlink \"${KDE_INSTALL_FULL_APPDIR}/org.kde.dolphin.desktop\" \"\$ENV{DESTDIR}${KDE_INSTALL_FULL_DATAROOTDIR}/kglobalaccel/org.kde.dolphin.desktop\")"
-)
+    install(
+        CODE "execute_process(COMMAND \"${CMAKE_COMMAND}\" -E create_symlink \"${KDE_INSTALL_APPDIR}/org.kde.dolphin.desktop\" \"\$ENV{DESTDIR}${KDE_INSTALL_FULL_DATAROOTDIR}/kglobalaccel/org.kde.dolphin.desktop\")"
+    )
+endif()
 
 install( FILES settings/dolphin_directoryviewpropertysettings.kcfg
                settings/dolphin_generalsettings.kcfg

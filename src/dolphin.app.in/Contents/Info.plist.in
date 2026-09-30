@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  SPDX-FileCopyrightText: 2026 KDE Contributors
+  SPDX-License-Identifier: CC0-1.0
+-->
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>dolphin</string>
+    <key>CFBundleIconFile</key>
+    <string>dolphin.icns</string>
+    <key>CFBundleIdentifier</key>
+    <string>org.kde.dolphin</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>Dolphin</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>@RELEASE_SERVICE_VERSION@</string>
+    <key>CFBundleVersion</key>
+    <string>@RELEASE_SERVICE_VERSION@</string>
+    <!--
+      Dolphin registers org.freedesktop.FileManager1 on the session bus for
+      desktop-environment integration. On macOS there is no session bus, so the
+      document type is declared here instead and there is no D-Bus service name.
+    -->
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Folder</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>public.folder</string>
+            </array>
+        </dict>
+    </array>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSRequiresAquaSystemAppearance</key>
+    <false/>
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright KDE e.V. and contributors</string>
+</dict>
+</plist>
