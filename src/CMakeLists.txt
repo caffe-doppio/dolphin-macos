@@ -515,18 +515,6 @@ target_sources(dolphin PRIVATE
     main.cpp
 )
 
-if(APPLE)
-    # Qt's Cocoa plugin does not handle the kAERevealSelection Apple event, which is how macOS
-    # asks a file viewer to reveal a file (`open -R`, and third-party "Show in Finder" actions).
-    # These files install a handler for it.
-    enable_language(OBJCXX)
-    target_sources(dolphin PRIVATE
-        macos/appleeventhandler.h
-        macos/appleeventhandler.mm
-    )
-    set_source_files_properties(macos/appleeventhandler.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
-endif()
-
 if(FLATPAK)
     target_compile_definitions(dolphin PRIVATE FLATPAK)
 endif()

@@ -32,16 +32,17 @@
 #include <KStyleManager>
 #endif
 
-#ifdef Q_OS_MACOS
-#include "macos/appleeventhandler.h"
-#endif
-
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
 #include <QSessionManager>
 #include <QTimer>
+
+#ifdef Q_OS_MACOS
+#include <QFileOpenEvent>
+#include <functional>
+#endif
 
 #if HAVE_X11
 #include <private/qtx11extras_p.h>
@@ -50,6 +51,60 @@
 #ifndef Q_OS_WIN
 #include <unistd.h>
 #endif
+/// macOS delivers `open -R <file>` and `open <folder>` as an open-documents request, which Qt
+/// turns into a QFileOpenEvent aimed at the QApplication object. DolphinMainWindow never sees
+/// such an event, because Qt posts it to the application rather than to a top-level window.
+/// (It is also not the kAERevealSelection Apple event: measured against a minimal Cocoa app,
+/// that event class is never sent by `open -R` at all.)
+///
+/// The event can arrive before the main window exists, since LaunchServices sends it during
+/// startup, so requests are queued until a handler is installed. Each request is revealed by
+/// opening the containing folder and selecting the file.
+#ifdef Q_OS_MACOS
+class macOSApplication : public QApplication
+{
+public:
+    using QApplication::QApplication;
+
+    void setRevealHandler(std::function<void(const QList<QUrl> &)> handler)
+    {
+        m_handler = std::move(handler);
+
+        const QList<QUrl> pending = std::exchange(m_pendingUrls, {});
+        if (m_handler && !pending.isEmpty()) {
+            QTimer::singleShot(0, this, [this, pending]() {
+                m_handler(pending);
+            });
+        }
+    }
+
+protected:
+    bool event(QEvent *event) override
+    {
+        if (event->type() == QEvent::FileOpen) {
+            const auto *fileOpenEvent = static_cast<QFileOpenEvent *>(event);
+            event->accept();
+
+            const QUrl url = fileOpenEvent->url();
+            if (url.isValid()) {
+                if (m_handler) {
+                    m_handler({url});
+                } else {
+                    m_pendingUrls.append(url);
+                }
+            }
+            return true;
+        }
+
+        return QApplication::event(event);
+    }
+
+private:
+    std::function<void(const QList<QUrl> &)> m_handler;
+    QList<QUrl> m_pendingUrls;
+};
+#endif
+
 #include <iostream>
 
 constexpr auto dolphinTranslationDomain{"dolphin"};
@@ -72,10 +127,6 @@ int main(int argc, char **argv)
     }
 #endif
 
-    // Qt installs its own Apple Event handlers while QApplication is being constructed, which
-    // shadows any handler registered afterwards. Register ours first so `open -R` is delivered.
-    AppleEventHandler::install();
-
 #ifndef Q_OS_WIN
     // Prohibit using sudo or kdesu (but allow using the root user directly)
     if (getuid() == 0 && (!qEnvironmentVariableIsEmpty("SUDO_USER") || !qEnvironmentVariableIsEmpty("KDESU_USER"))) {
@@ -96,7 +147,11 @@ int main(int argc, char **argv)
      */
     KIconTheme::initTheme();
 
+#ifdef Q_OS_MACOS
+    macOSApplication app(argc, argv);
+#else
     QApplication app(argc, argv);
+#endif
     app.setWindowIcon(QIcon::fromTheme(QStringLiteral("org.kde.dolphin"), app.windowIcon()));
 
 #if HAVE_STYLE_MANAGER
@@ -256,12 +311,12 @@ int main(int argc, char **argv)
     }
 
 #ifdef Q_OS_MACOS
-    // Handle `open -R <file>` and third-party "Show in Finder" actions. These arrive as the
-    // kAERevealSelection Apple event, which Qt's Cocoa plugin does not handle, so a handler is
-    // installed here. Each request is turned into the same reveal the FileOpen path performs:
-    // open the parent folder and select the file.
-    AppleEventHandler::setHandler([mainWindow](const QList<QUrl> &revealUrls) {
-        for (const QUrl &url : revealUrls) {
+    // `open -R <file>`, `open <folder>` and third-party "Show in Finder" actions all arrive as
+    // an open-documents request that Qt surfaces as a QFileOpenEvent on the QApplication
+    // object - see macOSApplication. Each request is turned into the same reveal Dolphin
+    // performs elsewhere: open the containing folder and select the file.
+    app.setRevealHandler([mainWindow](const QList<QUrl> &urls) {
+        for (const QUrl &url : urls) {
             mainWindow->revealUrl(url);
         }
     });

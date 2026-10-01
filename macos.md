@@ -111,34 +111,28 @@ $ lsregister -dump | grep -A10 'identifier:.*org.kde.dolphin'
 Third-party apps that hardcode `open -a Finder` or target `com.apple.finder`
 also bypass `NSFileViewer`. Finder remains responsible for the Desktop.
 
-### `open -R <file>` does not reveal the file
+### `open -R <file>` reveals the file
 
-`open -R` is delivered as the `kAERevealSelection` Apple event. Qt's Cocoa
-plugin does not handle it, so `src/macos/appleeventhandler.mm` registers a
-handler for it. **The handler never fires.** Instrumenting it showed that neither
-`kAERevealSelection` nor `kAEOpenApplication` (a control event macOS always
-sends on launch) reaches `NSAppleEventManager` in this application.
+This works. The mechanism was initially misdiagnosed twice, so the reasoning is recorded here.
 
-Two things were wrong. First, registration timing: `install()` now runs *before*
-`QApplication` is constructed and re-arms afterwards, since Qt installs its own Apple Event
-handlers during construction.
+`open -R <file>` does **not** arrive as the `kAERevealSelection` Apple event. A minimal
+standalone Cocoa app - no Qt, registered as `NSFileViewer`, logging every Apple event and the
+`application:openFiles:` callback - showed that macOS sends an ordinary **open-documents**
+request, which AppKit delivers as `application:openFiles:`. `kAERevealSelection` is never sent.
 
-Second, and decisively, the event class: `kAERevealSelection` (`'srev'`) belongs to
-**`kAEFinderEvents`** (`'FNDR'`), not `kCoreEventClass` (`'aevt'`). Apple events dispatch on the
-*(class, id)* pair, so registering the right id under the wrong class silently never matches.
+The first guess, that Qt's Cocoa plugin swallowed the event, was wrong: Qt does receive it. The
+problem is *where* Qt delivers it. `QFileOpenEvent` is posted to the **`QApplication` object**,
+not to the top-level window, so a handler in `DolphinMainWindow::event()` never runs - confirmed
+by instrumenting that handler and observing zero callbacks even for a direct
+`open -a Dolphin.app <file>`.
 
-Neither was sufficient. Instrumenting the handler after both corrections still shows no callback,
-in either the cold-launch or already-running case. `open -R` does route to Dolphin — it launches
-the app — so the request reaches the process; it just never reaches the `NSAppleEventManager`
-handler.
+`macOSApplication` in `src/main.cpp` is a `QApplication` subclass that intercepts
+`QEvent::FileOpen` at the application level. Requests are queued until the main window exists,
+since LaunchServices sends them during startup, before the window is built. Each request is
+turned into a reveal: open the containing folder and select the file.
 
-Remaining hypotheses, untested here: the event arriving before any handler can be registered at
-cold launch, or Qt's event dispatcher short-circuiting Apple event delivery entirely. Closing
-this would likely need a Carbon-level `AEInstallEventHandler` or an `NSApplicationDelegate`
-override.
-
-Until that is resolved, reveal requests are dropped and Dolphin stays on the folder it was
-already showing.
+Verified on the clean build: `open -R` works both when Dolphin is already running and when it is
+launched cold by the reveal, and the app does not deadlock.
 
 ### Screen reader announcements are disabled on macOS
 

@@ -603,29 +603,6 @@ void DolphinMainWindow::showTarget()
 
 bool DolphinMainWindow::event(QEvent *event)
 {
-    if (event->type() == QEvent::FileOpen) {
-        // LaunchServices delivers "open <path>" here. Qt only forwards this for plain file
-        // opens; `open -R` arrives as the kAERevealSelection Apple event instead and is handled
-        // by AppleEventHandler::install() in main.cpp.
-        auto *fileOpenEvent = static_cast<QFileOpenEvent *>(event);
-        event->accept();
-
-        raise();
-        QWidget::activateWindow();
-
-        const QFileInfo info(fileOpenEvent->file());
-        if (!info.exists()) {
-            return true;
-        }
-
-        if (info.isDir()) {
-            openDirectories({QUrl::fromLocalFile(info.absoluteFilePath())}, GeneralSettings::splitView());
-        } else {
-            revealUrl(fileOpenEvent->url());
-        }
-        return true;
-    }
-
     if (event->type() == QEvent::ShortcutOverride) {
         const QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
         if (keyEvent->key() == Qt::Key_Space && m_activeViewContainer->view()->handleSpaceAsNormalKey()) {
