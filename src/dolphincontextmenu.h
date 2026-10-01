@@ -97,6 +97,11 @@ private:
 private:
     void addDirectoryItemContextMenu();
     void addOpenParentFolderActions();
+
+    /**
+     * Adds "Compress..." on macOS, where no KIO service menu provides it.
+     */
+    void addCompressAction();
     void configureTrash();
 
     struct Entry {

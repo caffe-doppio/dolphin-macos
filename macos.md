@@ -22,6 +22,7 @@ in `craft-blueprints-kde`).
 | Open With dialog: trailing-slash paths rejected | No — upstream KIO bug |
 | "Remember application association" checkbox | No — upstream KIO bug, use `setdefault` |
 | "Open Terminal" / "Open Terminal Here" | Yes — uses Ghostty/iTerm/Alacritty/kitty/WezTerm, else Terminal.app |
+| "Compress..." context menu | Yes — ditto/tar/7z, see below |
 
 ## Build setup
 
@@ -213,6 +214,82 @@ wants when they have a real emulator installed. An explicitly configured
 `TerminalApplication`/`TerminalService` still wins, so setting one in `kioslaverc`
 overrides the table.
 
+### Compression
+
+Dolphin has no built-in compression code, on any platform. `Compress...` and
+`Extract Here` are contributed by **Ark** through a KIO service menu
+(`share/kio/servicemenu/*.desktop`), and Ark is a Linux KDE application that is
+not part of a macOS Craft build. The menu entry was therefore *absent*, not
+broken - the translation catalog has no `Compress` msgid and neither does
+upstream `master`.
+
+`DolphinContextMenu::addCompressAction()` adds a macOS implementation. It is
+deliberately gated on `Q_OS_MACOS` so the Linux path keeps using Ark.
+
+Formats offered, and why:
+
+| Format | Tool | Notes |
+| --- | --- | --- |
+| `.zip` | `ditto` | single item only |
+| `.zip` | `zip -r` | multi-item fallback |
+| `.tar.gz` / `.tar.bz2` / `.tar.xz` | `tar` | any number of items |
+| `.7z` | `7z` | only offered when installed |
+
+Tools are invoked by **absolute path**. LaunchServices starts Dolphin without
+the user's shell `PATH`, so a bare `tar` would work for someone with Homebrew
+configured and fail for everyone else. `7z` is located explicitly under
+`/opt/homebrew/bin` and `/usr/local/bin`.
+
+#### Why `ditto` for zip, and not `zip`
+
+Measured on this machine, compressing a file carrying a custom extended
+attribute and extracting it again:
+
+| Tool | xattr survives |
+| --- | --- |
+| `ditto -c -k --sequesterRsrc` | yes |
+| `zip -r` | no |
+| `bsdtar -a` (libarchive zip writer) | no |
+
+`ditto` stores extended attributes as AppleDouble `__MACOSX/._name` entries.
+Neither `zip` nor libarchive's zip writer stores them at all. This is not
+cosmetic: Gatekeeper keys off `com.apple.quarantine`, so a plain `zip` silently
+strips the flag from downloaded files.
+
+The cost is that `ditto` refuses to archive more than one source
+(`ditto: Can't archive multiple sources`), so multi-item zips fall back to
+`zip -r` and lose extended attributes. Single-item compression - the common
+case - keeps full fidelity.
+
+#### The ditto argument-order trap
+
+The first working build failed at runtime with:
+
+```
+ditto: Cannot get the real path for source '/Users/tim/Desktop/CompressTest.zip'
+```
+
+`ditto` takes `ditto [options] src... dst` - destination **last**. `tar` and
+`zip` instead take the archive immediately after their flag. The first
+implementation used the tar/zip layout for every tool, so ditto read the output
+path as a source. `CompressFormat::OutputPosition` now records which convention
+each tool uses.
+
+All four tools are run with the parent directory as their working directory and
+**bare** file names as inputs, which is the one calling convention they share
+and keeps archives rooted at item names rather than absolute paths.
+
+#### A measurement mistake worth recording
+
+While checking this work I searched the built binary for `--sequesterRsrc` and
+`/usr/bin/ditto` with `strings` and `grep -a`, found nothing, and briefly
+concluded the code was not being compiled in. It was compiled in the whole
+time. Qt 6's `QStringLiteral` stores its payload as **UTF-16**, so the literals
+are in the binary as `char16_t` and no UTF-8 search will ever find them. The
+check that actually works is a UTF-16 search, or simply running the program and
+looking at what it executes.
+
+
 ### `open -R <file>` reveals the file
 
 This works. The mechanism was initially misdiagnosed twice, so the reasoning is recorded here.
@@ -329,6 +406,18 @@ None exist on macOS, so both terminal actions failed silently. A macOS-only
 Terminal.app in order, using each one's own directory argument, and only defers to
 `KTerminalLauncherJob` when the user has configured a terminal explicitly. See
 "Terminal launching" above.
+
+### Compression on macOS
+
+Adds `DolphinContextMenu::addCompressAction()`, wired into both the item and
+viewport context menus. The viewport case compresses the currently open folder,
+which is the same affordance Finder offers on empty space.
+
+The entry was missing entirely rather than broken: Dolphin delegates
+compression to Ark's KIO service menu, and Ark is not in a macOS Craft build.
+The action is `#ifdef Q_OS_MACOS` so Linux keeps using Ark. See "Compression"
+above for the format table, the `ditto`-vs-`zip` extended-attribute
+measurements, and the ditto argument-order bug found during testing.
 
 ## Troubleshooting
 

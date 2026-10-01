@@ -22,19 +22,23 @@
 #include <KActionCollection>
 #include <KFileItemListProperties>
 #include <KHamburgerMenu>
-#include <KIO/EmptyTrashJob>
+#include <KIO/CommandLauncherJob>
 #include <KIO/JobUiDelegate>
 #include <KIO/Paste>
 #include <KIO/RestoreJob>
 #include <KJobWidgets>
 #include <KLocalizedString>
+#include <KMessageBox>
 #include <KNewFileMenu>
 #include <KStandardAction>
-
+#include <KStandardGuiItem>
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
+#include <QInputDialog>
 #include <QKeyEvent>
+#include <QLineEdit>
+#include <QStandardPaths>
 
 DolphinContextMenu::DolphinContextMenu(DolphinMainWindow *parent,
                                        const KFileItem &fileInfo,
@@ -277,6 +281,209 @@ void DolphinContextMenu::addOpenParentFolderActions()
     });
 }
 
+#ifdef Q_OS_MACOS
+namespace
+{
+// One entry per archive format the compress dialog offers.
+//
+// Programs are absolute paths on purpose. LaunchServices starts Dolphin without
+// the user's shell PATH, so a bare "tar" would resolve for a user with
+// Homebrew configured and fail for everyone else.
+//
+// .zip goes through ditto rather than /usr/bin/zip because ditto's
+// --sequesterRsrc stores extended attributes as AppleDouble entries, so
+// com.apple.quarantine and resource forks survive a round trip through Archive
+// Utility. Measured on this machine: ditto preserves a custom xattr through
+// compress+extract, while /usr/bin/zip and bsdtar's zip writer both drop it
+// silently. That matters because Gatekeeper keys off the quarantine flag.
+//
+// ditto refuses to archive more than one source ("Can't archive multiple
+// sources"), so multi-item zips fall back to /usr/bin/zip, which handles any
+// number of inputs but loses extended attributes. Single-item compression -
+// the common case - keeps full fidelity.
+// Where the output path goes in the argument list. ditto takes
+// "ditto [options] src... dst", so its destination must come last, while tar
+// and zip expect the archive right after their flag. Getting this wrong is not
+// a cosmetic mistake: ditto then treats the archive path as a source and
+// fails with "Cannot get the real path for source".
+enum class OutputPosition {
+    AfterFlags, // tar -czf <out> <names...>, zip -r <out> <names...>
+    Last, // ditto [options] <names...> <out>
+};
+
+struct CompressFormat {
+    QString suffix;
+    QString description;
+    QString program; // used for a single item
+    QStringList arguments; // leading flags, before the output path
+    OutputPosition outputPosition;
+    QString multiProgram; // used when several items are selected
+    QStringList multiArguments;
+};
+QList<CompressFormat> compressFormats()
+{
+    QList<CompressFormat> formats{
+        {QStringLiteral(".zip"),
+         i18nc("@item:inlistbox", "ZIP archive (.zip)"),
+         QStringLiteral("/usr/bin/ditto"),
+         {QStringLiteral("-c"), QStringLiteral("-k"), QStringLiteral("--sequesterRsrc"), QStringLiteral("--keepParent")},
+         OutputPosition::Last,
+         QStringLiteral("/usr/bin/zip"),
+         {QStringLiteral("-r")}},
+        {QStringLiteral(".tar.gz"),
+         i18nc("@item:inlistbox", "Gzipped tar archive (.tar.gz)"),
+         QStringLiteral("/usr/bin/tar"),
+         {QStringLiteral("-czf")},
+         OutputPosition::AfterFlags,
+         {},
+         {}},
+        {QStringLiteral(".tar.bz2"),
+         i18nc("@item:inlistbox", "Bzip2 tar archive (.tar.bz2)"),
+         QStringLiteral("/usr/bin/tar"),
+         {QStringLiteral("-cjf")},
+         OutputPosition::AfterFlags,
+         {},
+         {}},
+        {QStringLiteral(".tar.xz"),
+         i18nc("@item:inlistbox", "Xz tar archive (.tar.xz)"),
+         QStringLiteral("/usr/bin/tar"),
+         {QStringLiteral("-cJf")},
+         OutputPosition::AfterFlags,
+         {},
+         {}},
+    };
+
+    // 7z is not part of macOS, so only offer it when it is actually installed.
+    const QString sevenZip = QStandardPaths::findExecutable(QStringLiteral("7z"), {QStringLiteral("/opt/homebrew/bin"), QStringLiteral("/usr/local/bin")});
+    if (!sevenZip.isEmpty()) {
+        formats.append(
+            {QStringLiteral(".7z"), i18nc("@item:inlistbox", "7-Zip archive (.7z)"), sevenZip, {QStringLiteral("a")}, OutputPosition::AfterFlags, {}, {}});
+    }
+
+    return formats;
+}
+
+// Matches what Finder offers: the single item's own name, or a generic name
+// when several items are selected.
+QString defaultArchiveBaseName(const KFileItemList &items)
+{
+    if (items.count() == 1) {
+        return items.first().name();
+    }
+    return i18nc("@label", "Archive");
+}
+}
+#endif
+
+void DolphinContextMenu::addCompressAction()
+{
+#ifdef Q_OS_MACOS
+    // On Linux this entry is contributed by Ark through a KIO service menu.
+    // Ark is not part of a macOS Craft build, so without this the action is
+    // simply absent from the context menu.
+    //
+    // With nothing selected this still works: it compresses the folder that is
+    // currently open, which is the same affordance the viewport menu offers.
+    const KFileItemList items = m_selectedItems.isEmpty() ? KFileItemList() << baseFileItem() : m_selectedItems;
+    if (items.isEmpty()) {
+        return;
+    }
+
+    addAction(QIcon::fromTheme(QStringLiteral("application-zip")), i18nc("@action:inmenu", "Compress..."), [this, items]() {
+        const QList<CompressFormat> formats = compressFormats();
+
+        QStringList descriptions;
+        descriptions.reserve(formats.size());
+        for (const CompressFormat &format : formats) {
+            descriptions << format.description;
+        }
+
+        bool formatAccepted = false;
+        const QString chosen =
+            QInputDialog::getItem(m_mainWindow, i18nc("@title", "Compress"), i18nc("@label", "Archive format:"), descriptions, 0, false, &formatAccepted);
+        if (!formatAccepted) {
+            return;
+        }
+
+        const CompressFormat format = formats.at(descriptions.indexOf(chosen));
+
+        bool nameAccepted = false;
+        const QString archiveName = QInputDialog::getText(m_mainWindow,
+                                                          i18nc("@title", "Compress"),
+                                                          i18nc("@label", "Archive name:"),
+                                                          QLineEdit::Normal,
+                                                          defaultArchiveBaseName(items) + format.suffix,
+                                                          &nameAccepted)
+                                        .trimmed();
+        if (!nameAccepted || archiveName.isEmpty()) {
+            return;
+        }
+
+        // The archive is always written next to the items. A name containing a
+        // slash would escape that directory, so reject it rather than resolve it.
+        if (archiveName.contains(QLatin1Char('/'))) {
+            KMessageBox::error(m_mainWindow, i18nc("@error", "The archive name cannot contain a slash."));
+            return;
+        }
+
+        const QUrl outputUrl = items.first().url().resolved(QUrl(archiveName));
+        if (!outputUrl.isLocalFile()) {
+            KMessageBox::error(m_mainWindow, i18nc("@error", "Compressing is only supported for local files."));
+            return;
+        }
+
+        const QString outputPath = outputUrl.toLocalFile();
+        if (QFileInfo::exists(outputPath)) {
+            KGuiItem replaceItem;
+            replaceItem.setText(i18nc("@action:button", "Replace"));
+            replaceItem.setIcon(QIcon::fromTheme(QStringLiteral("edit-overwrite")));
+
+            const auto answer =
+                KMessageBox::warningTwoActionsCancel(m_mainWindow,
+                                                     i18nc("@message", "A file named \"%1\" already exists. Do you want to replace it?", archiveName),
+                                                     i18nc("@title", "Compress"),
+                                                     replaceItem,
+                                                     KStandardGuiItem::cancel());
+            if (answer != KMessageBox::PrimaryAction) {
+                return;
+            }
+        }
+
+        // Every supported archiver is run with the parent directory as its
+        // working directory and bare file names as inputs. That keeps each
+        // archive rooted at the item names rather than at absolute paths, and
+        // it is the one calling convention all four tools share.
+        //
+        // ditto only ever handles a single source, so a multi-item zip falls
+        // back to /usr/bin/zip. tar and 7z take any number of inputs, so they
+        // are used unchanged.
+        const bool useMultiVariant = items.count() > 1 && !format.multiProgram.isEmpty();
+        const QString program = useMultiVariant ? format.multiProgram : format.program;
+        QStringList arguments = useMultiVariant ? format.multiArguments : format.arguments;
+
+        QStringList inputNames;
+        inputNames.reserve(items.count());
+        for (const KFileItem &item : items) {
+            inputNames << item.name();
+        }
+
+        // The multi-item fallback is always /usr/bin/zip, which takes the
+        // archive right after its flag like tar does.
+        const OutputPosition position = useMultiVariant ? OutputPosition::AfterFlags : format.outputPosition;
+        if (position == OutputPosition::Last) {
+            arguments << inputNames << outputPath;
+        } else {
+            arguments << outputPath << inputNames;
+        }
+
+        auto *job = new KIO::CommandLauncherJob(program, arguments, m_mainWindow);
+        job->setDesktopName(QStringLiteral("org.kde.dolphin"));
+        job->setWorkingDirectory(KIO::upUrl(items.first().url()).toLocalFile());
+        job->start();
+    });
+#endif
+}
+
 void DolphinContextMenu::addItemContextMenu()
 {
     Q_ASSERT(!m_fileInfo.isNull());
@@ -322,6 +529,7 @@ void DolphinContextMenu::addItemContextMenu()
         // Insert 'Open With" entries
         addOpenWithActions();
     }
+    addCompressAction();
 
     insertDefaultItemActions(selectedItemsProps);
 
@@ -389,6 +597,7 @@ void DolphinContextMenu::addViewportContextMenu()
     }
 
     addAdditionalActions(baseUrlProperties);
+    addCompressAction();
 
     addSeparator();
 
