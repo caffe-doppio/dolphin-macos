@@ -119,16 +119,23 @@ handler for it. **The handler never fires.** Instrumenting it showed that neithe
 `kAERevealSelection` nor `kAEOpenApplication` (a control event macOS always
 sends on launch) reaches `NSAppleEventManager` in this application.
 
-Registration timing was tested and ruled out. `install()` now runs *before*
-`QApplication` is constructed, in case Qt was shadowing a later registration; it makes no
-difference. Instrumenting the handler showed `setHandler()` running on schedule while
-`kAERevealSelection` never arrives — both when Dolphin is already running and when it is
-launched cold by the reveal itself. Qt's Cocoa integration appears to take over Apple Event
-dispatch below the `NSAppleEventManager` level, via the Carbon `AEInstallEventHandler` API,
-which pre-empts it.
+Two things were wrong. First, registration timing: `install()` now runs *before*
+`QApplication` is constructed and re-arms afterwards, since Qt installs its own Apple Event
+handlers during construction.
 
-Getting this working would mean installing a Carbon-level event handler, or overriding
-`NSApplicationDelegate`. Both are plausible but untested here.
+Second, and decisively, the event class: `kAERevealSelection` (`'srev'`) belongs to
+**`kAEFinderEvents`** (`'FNDR'`), not `kCoreEventClass` (`'aevt'`). Apple events dispatch on the
+*(class, id)* pair, so registering the right id under the wrong class silently never matches.
+
+Neither was sufficient. Instrumenting the handler after both corrections still shows no callback,
+in either the cold-launch or already-running case. `open -R` does route to Dolphin — it launches
+the app — so the request reaches the process; it just never reaches the `NSAppleEventManager`
+handler.
+
+Remaining hypotheses, untested here: the event arriving before any handler can be registered at
+cold launch, or Qt's event dispatcher short-circuiting Apple event delivery entirely. Closing
+this would likely need a Carbon-level `AEInstallEventHandler` or an `NSApplicationDelegate`
+override.
 
 Until that is resolved, reveal requests are dropped and Dolphin stays on the folder it was
 already showing.

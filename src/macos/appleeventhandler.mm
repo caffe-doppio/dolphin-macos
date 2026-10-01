@@ -104,24 +104,44 @@ QList<QUrl> urlsFromRevealEvent(NSAppleEventDescriptor *event)
 
 @end
 
+namespace
+{
+
+/// Registers the handler. Called twice: once before QApplication and once after, because Qt
+/// installs its own Apple Event handlers while the application is being constructed and a
+/// handler registered before that can be replaced.
+void registerRevealHandler()
+{
+    // The handler object must outlive this call: NSAppleEventManager keeps only a weak reference.
+    static KDCocoaRevealHandler *handlerObject = [[KDCocoaRevealHandler alloc] init];
+
+    [[NSAppleEventManager sharedAppleEventManager]
+        setEventHandler:handlerObject
+          andSelector:@selector(handleRevealSelection:withReplyEvent:)
+        forEventClass:kAEFinderEvents
+           andEventID:kAERevealSelection];
+}
+
+} // namespace
+
 namespace AppleEventHandler
 {
 
 void install()
 {
-    // The handler object must outlive this call: NSAppleEventManager keeps only a weak reference.
-    static KDCocoaRevealHandler *s_handlerObject = [[KDCocoaRevealHandler alloc] init];
-
-    [[NSAppleEventManager sharedAppleEventManager]
-        setEventHandler:s_handlerObject
-          andSelector:@selector(handleRevealSelection:withReplyEvent:)
-        forEventClass:kCoreEventClass
-           andEventID:kAERevealSelection];
+    // kAERevealSelection belongs to the Finder event class ('FNDR'), not the core ('aevt') class.
+    // Apple events dispatch on the (class, id) pair, so registering this id under
+    // kCoreEventClass silently never matches.
+    registerRevealHandler();
 }
 
 void setHandler(RevealRequestHandler handler)
 {
     s_handler = std::move(handler);
+
+    // Re-arm: Qt installs its own Apple Event handlers while QApplication is being constructed,
+    // which would have replaced the early registration.
+    registerRevealHandler();
 
     // Anything that arrived before now was queued.
     if (!s_pending.isEmpty() && s_handler) {
