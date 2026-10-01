@@ -171,6 +171,14 @@ public Q_SLOTS:
     bool isActiveWindow();
 
     /**
+     * Reveals @p url: opens the folder containing it and selects it there.
+     *
+     * Used on macOS for `open -R <file>` and third-party "Show in Finder" actions, which are
+     * delivered as the kAERevealSelection Apple event. Does nothing if @p url is not a local file.
+     */
+    void revealUrl(const QUrl &url);
+
+    /**
      * Determines if a URL is open in any tab.
      * @note Use of QString instead of QUrl is required to be callable via DBus.
      *

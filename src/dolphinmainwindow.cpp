@@ -604,42 +604,25 @@ void DolphinMainWindow::showTarget()
 bool DolphinMainWindow::event(QEvent *event)
 {
     if (event->type() == QEvent::FileOpen) {
-        // On macOS this is how LaunchServices delivers "open folder" (open <dir>) and "reveal"
-        // (open -R <file>) requests, including third-party "Show in Finder" actions. Without this
-        // the request is silently dropped, which matters once Dolphin is registered as the
-        // handler for public.folder.
+        // LaunchServices delivers "open <path>" here. Qt only forwards this for plain file
+        // opens; `open -R` arrives as the kAERevealSelection Apple event instead and is handled
+        // by AppleEventHandler::install() in main.cpp.
         auto *fileOpenEvent = static_cast<QFileOpenEvent *>(event);
         event->accept();
 
         raise();
         QWidget::activateWindow();
 
-        const QString file = fileOpenEvent->file();
-        if (file.isEmpty()) {
-            return true;
-        }
-
-        const QFileInfo info(file);
-        if (info.isDir()) {
-            // The common case: show the requested folder.
-            openDirectories({QUrl::fromLocalFile(info.absoluteFilePath())}, GeneralSettings::splitView());
-            return true;
-        }
-
+        const QFileInfo info(fileOpenEvent->file());
         if (!info.exists()) {
             return true;
         }
 
-        // A file was requested, which on macOS means "reveal": show the containing folder and
-        // select the file there, rather than trying to open the file itself.
-        openDirectories({QUrl::fromLocalFile(info.absolutePath())}, GeneralSettings::splitView());
-
-        // The item's index is only valid once the directory has finished loading.
-        DolphinView *view = m_activeViewContainer->view();
-        const QUrl target = fileOpenEvent->url();
-        connect(view, &DolphinView::directoryLoadingCompleted, view, [view, target]() {
-            view->selectUrl(target);
-        });
+        if (info.isDir()) {
+            openDirectories({QUrl::fromLocalFile(info.absoluteFilePath())}, GeneralSettings::splitView());
+        } else {
+            revealUrl(fileOpenEvent->url());
+        }
         return true;
     }
 
@@ -652,6 +635,36 @@ bool DolphinMainWindow::event(QEvent *event)
     }
 
     return KXmlGuiWindow::event(event);
+}
+
+void DolphinMainWindow::revealUrl(const QUrl &url)
+{
+    if (!url.isLocalFile()) {
+        return;
+    }
+
+    const QFileInfo info(url.toLocalFile());
+    if (!info.exists()) {
+        return;
+    }
+
+    const bool splitView = GeneralSettings::splitView();
+    raise();
+    QWidget::activateWindow();
+
+    if (info.isDir()) {
+        openDirectories({QUrl::fromLocalFile(info.absoluteFilePath())}, splitView);
+        return;
+    }
+
+    // Show the containing folder and select the file in it.
+    openDirectories({QUrl::fromLocalFile(info.absolutePath())}, splitView);
+
+    // The item's index is only valid once the directory has finished loading.
+    DolphinView *view = m_activeViewContainer->view();
+    connect(view, &DolphinView::directoryLoadingCompleted, view, [view, url]() {
+        view->selectUrl(url);
+    });
 }
 
 void DolphinMainWindow::showEvent(QShowEvent *event)

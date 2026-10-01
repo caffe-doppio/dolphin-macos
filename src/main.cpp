@@ -32,6 +32,10 @@
 #include <KStyleManager>
 #endif
 
+#ifdef Q_OS_MACOS
+#include "macos/appleeventhandler.h"
+#endif
+
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDBusConnection>
@@ -52,6 +56,22 @@ constexpr auto dolphinTranslationDomain{"dolphin"};
 
 int main(int argc, char **argv)
 {
+#ifdef Q_OS_MACOS
+    // Qt's QDBusConnection::sessionBus() blocks indefinitely when no D-Bus daemon is reachable:
+    // it tries to autolaunch one, and on macOS nothing answers, so the call parks in
+    // QLatch::waitInternal() and the window is never created. macOS has no D-Bus daemon and no
+    // session bus, and Dolphin's desktop-integration features are already no-ops there, so mark
+    // the bus as explicitly disabled before any D-Bus call happens.
+    //
+    // This must happen in-process rather than in a launcher script: when macOS starts Dolphin
+    // itself - `open -R <file>`, clicking the app in Finder, or LaunchServices routing a folder
+    // here - it passes none of our environment, so an exported variable would not be seen. An
+    // existing value is left untouched.
+    if (qEnvironmentVariableIsEmpty("DBUS_SESSION_BUS_ADDRESS")) {
+        qputenv("DBUS_SESSION_BUS_ADDRESS", "disabled:");
+    }
+#endif
+
 #ifndef Q_OS_WIN
     // Prohibit using sudo or kdesu (but allow using the root user directly)
     if (getuid() == 0 && (!qEnvironmentVariableIsEmpty("SUDO_USER") || !qEnvironmentVariableIsEmpty("KDESU_USER"))) {
@@ -230,6 +250,18 @@ int main(int argc, char **argv)
     } else {
         mainWindow->openDirectories(urls, splitView);
     }
+
+#ifdef Q_OS_MACOS
+    // Handle `open -R <file>` and third-party "Show in Finder" actions. These arrive as the
+    // kAERevealSelection Apple event, which Qt's Cocoa plugin does not handle, so a handler is
+    // installed here. Each request is turned into the same reveal the FileOpen path performs:
+    // open the parent folder and select the file.
+    AppleEventHandler::install([mainWindow](const QList<QUrl> &revealUrls) {
+        for (const QUrl &url : revealUrls) {
+            mainWindow->revealUrl(url);
+        }
+    });
+#endif
 
     mainWindow->show();
 
