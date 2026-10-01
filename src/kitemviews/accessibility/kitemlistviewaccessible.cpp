@@ -36,16 +36,32 @@ KItemListViewAccessible::KItemListViewAccessible(KItemListView *view_, KItemList
     Q_ASSERT(parent);
     m_accessibleDelegates.resize(view()->model()->count());
 
-    m_announceCurrentItemTimer = new QTimer{view_};
+    // The announce timer must not outlive this object. QAccessibleInterface instances are owned
+    // and cached by Qt (see QAccessible::deleteAccessibleInterface), not by the widget, so Qt can
+    // destroy this object while the view - and a timer parented to it - is still alive. The
+    // original code parented the timer to the view and used the view as the connect() context
+    // object (QAccessibleObject does not derive from QObject, so `this` cannot be a context), so
+    // a pending 100ms timeout could fire afterwards and call back into freed memory through the
+    // captured `this`.
+    //
+    // Owning the timer here instead makes the lifetime explicit: it is stopped and deleted in the
+    // destructor below, so it can never outlive this object. KItemListGroupHeader::connect only
+    // names QObject's overloads, which is what disambiguates the call for this class.
+    m_announceCurrentItemTimer = new QTimer;
     m_announceCurrentItemTimer->setSingleShot(true);
     m_announceCurrentItemTimer->setInterval(100);
-    KItemListGroupHeader::connect(m_announceCurrentItemTimer, &QTimer::timeout, view_, [this]() {
+    KItemListGroupHeader::connect(m_announceCurrentItemTimer, &QTimer::timeout, m_announceCurrentItemTimer, [this]() {
         slotAnnounceCurrentItemTimerTimeout();
     });
 }
 
 KItemListViewAccessible::~KItemListViewAccessible()
 {
+    // Stop and delete the announce timer so it cannot outlive this object. This also drops the
+    // connection, since its context object is the timer.
+    m_announceCurrentItemTimer->stop();
+    delete m_announceCurrentItemTimer;
+
     for (AccessibleIdWrapper idWrapper : std::as_const(m_accessibleDelegates)) {
         if (idWrapper.isValid) {
             QAccessible::deleteAccessibleInterface(idWrapper.id);

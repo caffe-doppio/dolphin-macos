@@ -19,6 +19,8 @@
 #include <KTwoFingerTap>
 #include <KUrlMimeData>
 
+#include "kitemviews/accessibility/kitemlistviewaccessible.h"
+
 #include <QAccessible>
 #include <QApplication>
 #include <QDrag>
@@ -958,8 +960,10 @@ bool KItemListController::dropEvent(QGraphicsSceneDragDropEvent *event, const QT
         }
     }
 
-    QAccessibleEvent accessibilityEvent(view(), QAccessible::DragDropEnd);
-    QAccessible::updateAccessibility(&accessibilityEvent);
+    if (customAnnouncementsEnabled()) {
+        QAccessibleEvent accessibilityEvent(view(), QAccessible::DragDropEnd);
+        QAccessible::updateAccessibility(&accessibilityEvent);
+    }
 
     return true;
 }
@@ -1478,8 +1482,10 @@ void KItemListController::startDragging()
 
     drag->exec(Qt::MoveAction | Qt::CopyAction | Qt::LinkAction, Qt::CopyAction);
 
-    QAccessibleEvent accessibilityEvent(view(), QAccessible::DragDropStart);
-    QAccessible::updateAccessibility(&accessibilityEvent);
+    if (customAnnouncementsEnabled()) {
+        QAccessibleEvent accessibilityEvent(view(), QAccessible::DragDropStart);
+        QAccessible::updateAccessibility(&accessibilityEvent);
+    }
 }
 
 KItemListWidget *KItemListController::hoveredWidget() const

@@ -1749,8 +1749,12 @@ void KItemListView::slotCurrentChanged(int current, int previous)
         }
     }
 #ifndef QT_NO_ACCESSIBILITY
-    if (current != previous && QAccessible::isActive()) {
-        static_cast<KItemListViewAccessible *>(QAccessible::queryAccessibleInterface(this))->announceCurrentItem();
+    if (current != previous && customAnnouncementsEnabled()) {
+        // queryAccessibleInterface() may return nullptr, e.g. when the interface has not been
+        // created yet or was just discarded, so the result must be checked before use.
+        if (auto *accessible = static_cast<KItemListViewAccessible *>(QAccessible::queryAccessibleInterface(this))) {
+            accessible->announceCurrentItem();
+        }
     }
 #endif
 }
@@ -1766,7 +1770,7 @@ void KItemListView::slotSelectionChanged(const KItemSet &current, const KItemSet
         widget->setSelected(isSelected);
 
 #ifndef QT_NO_ACCESSIBILITY
-        if (!QAccessible::isActive()) {
+        if (!customAnnouncementsEnabled()) {
             continue;
         }
         // Let the screen reader announce "selected" or "not selected" for the active item.

@@ -415,6 +415,14 @@ public:
      */
     void expandToUrl(const QUrl &directory);
 
+    /**
+     * Selects @p url in the current view, makes it the current item and scrolls it into view.
+     * Does nothing if @p url is not part of the currently loaded directory.
+     *
+     * Used by the macOS "reveal" support (open -R) to show a file inside its parent folder.
+     */
+    void selectUrl(const QUrl &url);
+
 public Q_SLOTS:
 
     void reload();

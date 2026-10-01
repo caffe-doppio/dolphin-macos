@@ -603,6 +603,46 @@ void DolphinMainWindow::showTarget()
 
 bool DolphinMainWindow::event(QEvent *event)
 {
+    if (event->type() == QEvent::FileOpen) {
+        // On macOS this is how LaunchServices delivers "open folder" (open <dir>) and "reveal"
+        // (open -R <file>) requests, including third-party "Show in Finder" actions. Without this
+        // the request is silently dropped, which matters once Dolphin is registered as the
+        // handler for public.folder.
+        auto *fileOpenEvent = static_cast<QFileOpenEvent *>(event);
+        event->accept();
+
+        raise();
+        QWidget::activateWindow();
+
+        const QString file = fileOpenEvent->file();
+        if (file.isEmpty()) {
+            return true;
+        }
+
+        const QFileInfo info(file);
+        if (info.isDir()) {
+            // The common case: show the requested folder.
+            openDirectories({QUrl::fromLocalFile(info.absoluteFilePath())}, GeneralSettings::splitView());
+            return true;
+        }
+
+        if (!info.exists()) {
+            return true;
+        }
+
+        // A file was requested, which on macOS means "reveal": show the containing folder and
+        // select the file there, rather than trying to open the file itself.
+        openDirectories({QUrl::fromLocalFile(info.absolutePath())}, GeneralSettings::splitView());
+
+        // The item's index is only valid once the directory has finished loading.
+        DolphinView *view = m_activeViewContainer->view();
+        const QUrl target = fileOpenEvent->url();
+        connect(view, &DolphinView::directoryLoadingCompleted, view, [view, target]() {
+            view->selectUrl(target);
+        });
+        return true;
+    }
+
     if (event->type() == QEvent::ShortcutOverride) {
         const QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
         if (keyEvent->key() == Qt::Key_Space && m_activeViewContainer->view()->handleSpaceAsNormalKey()) {

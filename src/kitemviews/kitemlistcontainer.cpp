@@ -19,6 +19,7 @@
 #include <QFontMetrics>
 #include <QGraphicsScene>
 #include <QGraphicsView>
+#include <QPointer>
 #include <QScrollBar>
 #include <QScroller>
 #include <QStyleOption>
@@ -222,12 +223,21 @@ void KItemListContainer::focusInEvent(QFocusEvent *event)
 
         // We need to set the focus to the view or accessibility software will only announce the container (which has no information available itself).
         // For some reason actively setting the focus to the view needs to be delayed or the focus will immediately go back to this container.
-        QTimer::singleShot(0, this, [this, view]() {
+        // This runs deferred, so the view - and the accessible interface queried below - may
+        // already be gone by the time it executes. Querying an interface for a widget that has
+        // been destroyed returns a stale pointer, and QAccessible::queryAccessibleInterface()
+        // itself may return nullptr, so both must be checked before use.
+        QPointer<KItemListView> guardedView(view);
+        QTimer::singleShot(0, this, [this, guardedView]() {
             if (!isAncestorOf(QApplication::focusWidget())) {
-                view->setFocus();
+                guardedView->setFocus();
             }
 #ifndef QT_NO_ACCESSIBILITY
-            static_cast<KItemListViewAccessible *>(QAccessible::queryAccessibleInterface(view))->setAccessibleFocusAndAnnounceAll();
+            if (customAnnouncementsEnabled()) {
+                if (auto *accessible = static_cast<KItemListViewAccessible *>(QAccessible::queryAccessibleInterface(guardedView))) {
+                    accessible->setAccessibleFocusAndAnnounceAll();
+                }
+            }
 #endif
         });
     }

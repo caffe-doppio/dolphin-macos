@@ -17,6 +17,7 @@
 #include "dolphinplacesmodelsingleton.h"
 #include "filterbar/filterbar.h"
 #include "global.h"
+#include "kitemviews/accessibility/kitemlistviewaccessible.h"
 #include "kitemviews/kitemlistcontainer.h"
 #include "search/bar.h"
 #include "selectionmode/topbar.h"
@@ -509,7 +510,7 @@ void DolphinViewContainer::showMessage(const QString &message, KMessageWidget::M
     m_messageWidget->animatedShow();
 
 #ifndef QT_NO_ACCESSIBILITY
-    if (QAccessible::isActive() && isActive()) {
+    if (customAnnouncementsEnabled() && isActive()) {
         // To announce the new message keyboard focus must be moved to the message label. However, we do not have direct access to the label that is internal
         // to the KMessageWidget. Instead we setFocus() on the KMessageWidget and trust that it has set correct focus handling.
         m_messageWidget->setFocus();

@@ -21,6 +21,33 @@ class KItemListContainerAccessible;
 class KItemListSelectionManager;
 
 /**
+ * @returns Whether Dolphin's custom item-view accessibility announcements should be emitted.
+ *
+ * These announcements (current item, loaded location, selection changes, ...) are built on
+ * QAccessible's child-indexed events: they construct a QAccessibleEvent for the view and call
+ * setChild() with an item index. That pattern is well supported by AT-SPI on the freedesktop
+ * platforms, but Qt's Cocoa accessibility bridge on macOS cannot handle it: it indexes a child
+ * array it never populates and raises
+ * "-[__NSArrayM objectAtIndexedSubscript:]: index 0 beyond bounds for empty array", aborting
+ * the process. (See KDE bug reports for the corresponding Qt crashes.)
+ *
+ * The announcements are therefore suppressed on macOS. This only disables Dolphin's own
+ * announcements for the item view - standard Qt widget accessibility, and therefore VoiceOver
+ * support for menus, toolbars, dialogs and the rest of the UI, is unaffected.
+ */
+inline bool customAnnouncementsEnabled()
+{
+#ifdef Q_OS_MACOS
+    // See the comment above: Qt's Cocoa accessibility bridge crashes on the child-indexed
+    // events these announcements emit. Defined inline because the callers live in dolphinstatic
+    // while this header is also used from dolphinprivate.
+    return false;
+#else
+    return QAccessible::isActive();
+#endif
+}
+
+/**
  * The main class for making the main view accessible.
  *
  * Such a class is necessary because the KItemListView is a mostly custom entity. This class provides a lot of the functionality to make it possible to
