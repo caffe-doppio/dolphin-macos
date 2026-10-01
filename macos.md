@@ -19,6 +19,8 @@ in `craft-blueprints-kde`).
 | `open <folder>` → Dolphin | Yes, after registering and **logging out** |
 | `open -R <file>` → reveal in Dolphin | Yes |
 | Third-party "Show in Finder" | Only if the app uses the `NSFileViewer`-honoring API |
+| Open With dialog: trailing-slash paths rejected | No — upstream KIO bug |
+| "Remember application association" checkbox | No — upstream KIO bug, use `setdefault` |
 
 ## Build setup
 
@@ -100,6 +102,34 @@ open ~/some-folder    # should open Dolphin, not Finder
 open -R ~/some-file   # reveals in Dolphin
 ```
 
+### Per-type file associations
+
+The "Remember application association" checkbox in the Open With dialog does
+**not** work on macOS. It writes the freedesktop.org XDG `mimeapps.list`, which
+macOS never reads:
+
+```ini
+[Default Applications]
+text/x-web-markdown=Zed.app-3.desktop;
+```
+
+macOS resolves associations through LaunchServices UTI bindings instead, so use
+`~/bin/setdefault`, which calls `NSWorkspace`:
+
+```bash
+setdefault --get ~/notes/NOTE.md            # show the current handler
+setdefault org.kde.dolphin ~/notes/NOTE.md  # set Dolphin as the handler
+```
+
+It accepts a file path, a UTI, or a MIME type, and resolves a file to its UTI
+first. Passing a bare MIME type such as `text/x-web-markdown` resolves to a
+throwaway `dyn.*` identifier that LaunchServices rejects; pass a real file or
+the canonical UTI (`net.daringfireball.markdown`) instead.
+
+The service ID KIO invents is also wrong for macOS: `openwith.cpp` appends
+`-2`/`-3` suffixes to synthesise freedesktop `.desktop` entries, so even a
+Linux-side reader would be matching a name macOS has never registered.
+
 ## Known gaps
 
 ### `open <folder>` requires a logout before it takes effect
@@ -128,6 +158,28 @@ also bypass `NSFileViewer`, and Finder remains responsible for the Desktop.
 An app's own "Show in Finder" button only reaches Dolphin if it uses the
 `NSFileViewer`-honoring API; `activateFileViewerSelectingURLs:` is documented
 to activate Finder specifically.
+
+### Open With rejects any path with a trailing slash
+
+Selecting an `.app` in the Open With dialog fails with
+`Could not extract executable name from ''`. The dialog lives in KIO, not
+Dolphin: `DolphinContextMenu::addOpenWithActions()` →
+`KFileItemActions` → `KOpenWithDialog` → `KIO::OpenWith::accept()`.
+
+`KIO::DesktopExecParser::executableName()` returns the substring after the last
+`/`, so a trailing slash yields an empty string. macOS returns
+`/Applications/Zed.app/` because a `.app` bundle is a directory; Linux never
+hits this because Linux executables are files. Verified by linking KF6:
+
+```
+/Applications/Zed.app/   | name=''
+/Applications/Zed.app    | name='Zed.app'
+```
+
+The error text is itself unhelpful: `openwith.cpp` formats `serviceName`, which
+is empty by definition in that branch, so the message can never show the input.
+
+Workaround until KIO is patched: type the path **without** the trailing slash.
 
 ### `open -R <file>` reveals the file
 
