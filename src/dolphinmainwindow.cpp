@@ -1459,9 +1459,72 @@ void DolphinMainWindow::openTerminalHere()
     }
 }
 
+#ifdef Q_OS_MACOS
+namespace
+{
+// KTerminalLauncherJob resolves a terminal through the freedesktop KDE config:
+// TerminalService, then TerminalApplication, then org.kde.konsole, then a PATH
+// lookup of "konsole" and "xterm". None of those exist on macOS, so the job fails
+// with "No terminal emulator found" and the menu entry silently does nothing.
+//
+// Fall back to a real terminal emulator here. Terminal.app is last: it works
+// everywhere, but a proper emulator (Ghostty, iTerm, ...) is what a macOS user
+// actually wants. An explicitly configured terminal still wins.
+bool launchSystemTerminal(const QString &workingDirectory)
+{
+    const KConfigGroup confGroup(KSharedConfig::openConfig(), QStringLiteral("General"));
+    if (!confGroup.readEntry(QStringLiteral("TerminalApplication")).isEmpty() || !confGroup.readEntry(QStringLiteral("TerminalService")).isEmpty()) {
+        return false; // the user picked a terminal; let KTerminalLauncherJob use it
+    }
+
+    const QString path = workingDirectory.isEmpty() ? QDir::homePath() : workingDirectory;
+
+    // Each entry is an app name and the argument that makes it open in \a path.
+    // The first installed one wins.
+    static const QList<QPair<QString, QString>> emulators = {
+        {QStringLiteral("Ghostty"), QStringLiteral("--working-directory=%1")},
+        {QStringLiteral("iTerm"), QString()},
+        {QStringLiteral("Alacritty"), QStringLiteral("--working-directory=%1")},
+        {QStringLiteral("kitty"), QStringLiteral("--directory=%1")},
+        {QStringLiteral("WezTerm"), QStringLiteral("start --cwd %1")},
+        {QStringLiteral("Terminal"), QString()},
+    };
+
+    for (const auto &[app, dirArg] : emulators) {
+        // Resolve through LaunchServices so both /Applications and ~/Applications work.
+        if (QFileInfo::exists(QStringLiteral("/Applications/%1.app").arg(app))) {
+            QStringList command{QStringLiteral("open"), QStringLiteral("-n"), QStringLiteral("-a"), app};
+            if (!dirArg.isEmpty()) {
+                command << dirArg.arg(KShell::quoteArg(path));
+            } else if (!QString::compare(app, QStringLiteral("Terminal"), Qt::CaseInsensitive)) {
+                // "open -a Terminal <dir>" is the only way to start Terminal.app in
+                // a given directory; it ignores the directory it was launched from.
+                command << KShell::quoteArg(path);
+            } else {
+                // iTerm has no directory argument; it inherits the working directory.
+                command << QStringLiteral("--args");
+            }
+            auto *job = new KIO::CommandLauncherJob(command.join(QLatin1Char(' ')), nullptr);
+            job->setWorkingDirectory(path);
+            job->setDesktopName(QStringLiteral("org.kde.dolphin"));
+            job->start();
+            return true;
+        }
+    }
+
+    return false;
+}
+}
+#endif
+
 void DolphinMainWindow::openTerminalJob(const QUrl &url)
 {
     if (url.isLocalFile()) {
+#ifdef Q_OS_MACOS
+        if (launchSystemTerminal(url.toLocalFile())) {
+            return;
+        }
+#endif
         auto job = new KTerminalLauncherJob(QString());
         job->setWorkingDirectory(url.toLocalFile());
         job->start();
@@ -1478,8 +1541,14 @@ void DolphinMainWindow::openTerminalJob(const QUrl &url)
                 statUrl = job->mostLocalUrl();
             }
 
+            const QString dir = statUrl.isLocalFile() ? statUrl.toLocalFile() : QDir::homePath();
+#ifdef Q_OS_MACOS
+            if (launchSystemTerminal(dir)) {
+                return;
+            }
+#endif
             auto job = new KTerminalLauncherJob(QString());
-            job->setWorkingDirectory(statUrl.isLocalFile() ? statUrl.toLocalFile() : QDir::homePath());
+            job->setWorkingDirectory(dir);
             job->start();
         });
 
@@ -1487,6 +1556,11 @@ void DolphinMainWindow::openTerminalJob(const QUrl &url)
     }
 
     // Nothing worked, just use $HOME
+#ifdef Q_OS_MACOS
+    if (launchSystemTerminal(QString())) {
+        return;
+    }
+#endif
     auto job = new KTerminalLauncherJob(QString());
     job->setWorkingDirectory(QDir::homePath());
     job->start();

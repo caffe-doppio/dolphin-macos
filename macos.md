@@ -21,6 +21,7 @@ in `craft-blueprints-kde`).
 | Third-party "Show in Finder" | Only if the app uses the `NSFileViewer`-honoring API |
 | Open With dialog: trailing-slash paths rejected | No — upstream KIO bug |
 | "Remember application association" checkbox | No — upstream KIO bug, use `setdefault` |
+| "Open Terminal" / "Open Terminal Here" | Yes — uses Ghostty/iTerm/Alacritty/kitty/WezTerm, else Terminal.app |
 
 ## Build setup
 
@@ -181,6 +182,37 @@ is empty by definition in that branch, so the message can never show the input.
 
 Workaround until KIO is patched: type the path **without** the trailing slash.
 
+### Terminal launching
+
+"Open Terminal" and "Open Terminal Here" used to do nothing at all. Dolphin hands
+the work to `KTerminalLauncherJob`, which resolves a terminal purely through
+freedesktop KDE config:
+
+```
+TerminalService -> TerminalApplication -> org.kde.konsole -> PATH: konsole, xterm
+```
+
+None of those exist on macOS, so the job fails with `No terminal emulator found`
+and the menu entry fails silently — no error dialog, just no window.
+
+`launchSystemTerminal()` in `dolphinmainwindow.cpp` covers the unconfigured case on
+macOS by launching a terminal directly. It tries these in order and takes the first
+that is installed:
+
+| Emulator | Directory argument |
+| --- | --- |
+| Ghostty | `--working-directory=` |
+| iTerm | inherits the working directory |
+| Alacritty | `--working-directory=` |
+| kitty | `--directory=` |
+| WezTerm | `start --cwd` |
+| Terminal.app | `open -a Terminal <dir>` |
+
+Terminal.app is last on purpose: it always exists, but it is not what a macOS user
+wants when they have a real emulator installed. An explicitly configured
+`TerminalApplication`/`TerminalService` still wins, so setting one in `kioslaverc`
+overrides the table.
+
 ### `open -R <file>` reveals the file
 
 This works. The mechanism was initially misdiagnosed twice, so the reasoning is recorded here.
@@ -287,6 +319,16 @@ wrapper script and `open -R` still hung.
 An Objective-C++ `AppleEventHandler` was added to catch `kAERevealSelection`, then deleted
 once measurement showed macOS never sends that event for `open -R`. See "`open -R <file>`
 reveals the file" for the reasoning.
+
+### Terminal launching on macOS
+
+`openTerminalJob()` used `KTerminalLauncherJob` unconditionally, which resolves
+`TerminalService` → `TerminalApplication` → `org.kde.konsole` → PATH `konsole`/`xterm`.
+None exist on macOS, so both terminal actions failed silently. A macOS-only
+`launchSystemTerminal()` now tries Ghostty, iTerm, Alacritty, kitty, WezTerm and
+Terminal.app in order, using each one's own directory argument, and only defers to
+`KTerminalLauncherJob` when the user has configured a terminal explicitly. See
+"Terminal launching" above.
 
 ## Troubleshooting
 

@@ -29,3 +29,6 @@ apidocs
 doxygen.log
 .directory
 .cmake/
+
+# scratch clones made while reading upstream sources
+kio-src/
