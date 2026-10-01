@@ -72,6 +72,10 @@ int main(int argc, char **argv)
     }
 #endif
 
+    // Qt installs its own Apple Event handlers while QApplication is being constructed, which
+    // shadows any handler registered afterwards. Register ours first so `open -R` is delivered.
+    AppleEventHandler::install();
+
 #ifndef Q_OS_WIN
     // Prohibit using sudo or kdesu (but allow using the root user directly)
     if (getuid() == 0 && (!qEnvironmentVariableIsEmpty("SUDO_USER") || !qEnvironmentVariableIsEmpty("KDESU_USER"))) {
@@ -256,7 +260,7 @@ int main(int argc, char **argv)
     // kAERevealSelection Apple event, which Qt's Cocoa plugin does not handle, so a handler is
     // installed here. Each request is turned into the same reveal the FileOpen path performs:
     // open the parent folder and select the file.
-    AppleEventHandler::install([mainWindow](const QList<QUrl> &revealUrls) {
+    AppleEventHandler::setHandler([mainWindow](const QList<QUrl> &revealUrls) {
         for (const QUrl &url : revealUrls) {
             mainWindow->revealUrl(url);
         }

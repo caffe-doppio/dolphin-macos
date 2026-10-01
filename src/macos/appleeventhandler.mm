@@ -6,6 +6,7 @@
 
 #include "appleeventhandler.h"
 
+#include <QCoreApplication>
 #include <QTimer>
 #include <QUrl>
 
@@ -22,12 +23,18 @@
 //
 // The alias list of a kAERevealSelection event holds the URLs to reveal, either as a list of
 // strings or as a list of descriptors wrapping strings, depending on the sender.
+//
+// Requests are queued rather than delivered straight from the event handler: the event can
+// arrive before main() has installed the callback and before an event loop exists, and the
+// handler must not run application code while AppKit is still dispatching the event.
 
 namespace
 {
 
-/// Set by install(); read on the event loop thread when a reveal event arrives.
-AppleEventHandler::RevealRequestHandler s_revealRequestHandler;
+AppleEventHandler::RevealRequestHandler s_handler;
+
+/// Requests received before setHandler() ran.
+QList<QUrl> s_pending;
 
 /// Extracts file URLs from the alias list of a kAERevealSelection event.
 QList<QUrl> urlsFromRevealEvent(NSAppleEventDescriptor *event)
@@ -65,21 +72,43 @@ QList<QUrl> urlsFromRevealEvent(NSAppleEventDescriptor *event)
 
 } // namespace
 
-// The handler must be a method on an Objective-C object; a category-free private class keeps it
-// out of the global namespace without needing an instance of our own beyond the one held below.
+// The handler must be a method on an Objective-C object; a private class keeps it out of the
+// global namespace.
 @interface KDCocoaRevealHandler : NSObject
 @end
 
 @implementation KDCocoaRevealHandler
+
+- (void)handleRevealSelection:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)reply
+{
+    Q_UNUSED(reply);
+
+    const QList<QUrl> urls = urlsFromRevealEvent(event);
+    if (urls.isEmpty()) {
+        return;
+    }
+
+    // No event loop exists during launch, so a single-shot timer would never fire; queue instead
+    // and let setHandler()/the first event loop turn deliver it.
+    if (!QCoreApplication::instance() || !s_handler) {
+        s_pending.append(urls);
+        return;
+    }
+
+    const auto handler = s_handler;
+    const QList<QUrl> captured = urls;
+    QTimer::singleShot(0, [handler, captured]() {
+        handler(captured);
+    });
+}
+
 @end
 
 namespace AppleEventHandler
 {
 
-void install(RevealRequestHandler handler)
+void install()
 {
-    s_revealRequestHandler = std::move(handler);
-
     // The handler object must outlive this call: NSAppleEventManager keeps only a weak reference.
     static KDCocoaRevealHandler *s_handlerObject = [[KDCocoaRevealHandler alloc] init];
 
@@ -88,8 +117,21 @@ void install(RevealRequestHandler handler)
           andSelector:@selector(handleRevealSelection:withReplyEvent:)
         forEventClass:kCoreEventClass
            andEventID:kAERevealSelection];
+}
 
+void setHandler(RevealRequestHandler handler)
+{
+    s_handler = std::move(handler);
 
+    // Anything that arrived before now was queued.
+    if (!s_pending.isEmpty() && s_handler) {
+        const auto handler = s_handler;
+        const QList<QUrl> pending = std::move(s_pending);
+        s_pending.clear();
+        QTimer::singleShot(0, [handler, pending]() {
+            handler(pending);
+        });
+    }
 }
 
 } // namespace AppleEventHandler
