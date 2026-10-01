@@ -16,8 +16,9 @@ in `craft-blueprints-kde`).
 | Launches from Finder / Dock / `open` | Yes |
 | Launches via LaunchServices (macOS starts the app itself) | Yes, no deadlock |
 | Accessibility (screen reader announcements in the file view) | Disabled, see below |
-| `open <folder>` → Dolphin | No — macOS keeps Finder for `public.folder` |
-| `open -R <file>` → reveal in Dolphin | No — Apple Event never reaches our handler |
+| `open <folder>` → Dolphin | Yes, after registering and **logging out** |
+| `open -R <file>` → reveal in Dolphin | Yes |
+| Third-party "Show in Finder" | Only if the app uses the `NSFileViewer`-honoring API |
 
 ## Build setup
 
@@ -92,24 +93,41 @@ defaults read -g NSFileViewer     # should print org.kde.dolphin
 defaults delete -g NSFileViewer   # undo
 ```
 
-`open -R <file>` is the reliable test: it should launch Dolphin rather than
-Finder. `open <folder>` will *not* work — see "Known gaps".
+Test after **logging out and back in**, not immediately:
+
+```bash
+open ~/some-folder    # should open Dolphin, not Finder
+open -R ~/some-file   # reveals in Dolphin
+```
 
 ## Known gaps
 
-### `open <folder>` still opens Finder
+### `open <folder>` requires a logout before it takes effect
 
-`public.folder` is a system-managed UTI. LaunchServices reports our bundle as
-`isSystemManaged: true` and resolves the handler to Finder regardless of
-`LSHandlerRank` (`Owner` is already set in `Info.plist`):
+`open <folder>` does reach Dolphin, but not immediately after
+`lsregister -f /Applications/Dolphin.app` or after setting `NSFileViewer`.
+`sharedfilelistd` caches the LaunchServices state for the duration of the
+login session, so the change only takes effect after logging out and back in.
+
+This is easy to mistake for the registration having failed. Before the logout,
+`open <folder>` still goes to Finder, and `lsregister -dump` shows the bundle
+as `isSystemManaged: true` with the handler resolving to Finder — which looks
+like `public.folder` is system-managed and cannot be claimed, but is just the
+stale cached state:
 
 ```
 $ lsregister -dump | grep -A10 'identifier:.*org.kde.dolphin'
    isSystemManaged: true
 ```
 
+After a logout, folders open in Dolphin. `LSHandlerRank` is `Owner` in
+`Info.plist`.
+
 Third-party apps that hardcode `open -a Finder` or target `com.apple.finder`
-also bypass `NSFileViewer`. Finder remains responsible for the Desktop.
+also bypass `NSFileViewer`, and Finder remains responsible for the Desktop.
+An app's own "Show in Finder" button only reaches Dolphin if it uses the
+`NSFileViewer`-honoring API; `activateFileViewerSelectingURLs:` is documented
+to activate Finder specifically.
 
 ### `open -R <file>` reveals the file
 
@@ -212,13 +230,11 @@ Dolphin it passes none of our environment, so an exported variable (or a
 launcher script) is not seen. That was the bug — the first attempt used a
 wrapper script and `open -R` still hung.
 
-### Uncommitted — Apple Event registration timing
+### Removed — the Apple Event handler
 
-`AppleEventHandler::install()` was moved to run before `QApplication` is constructed, so the
-reveal callback is supplied later via `setHandler()` and events arriving in between are queued.
-This was to test whether Qt was shadowing a handler registered after application construction.
-It does not fix the reveal; the details are recorded under "Known gaps". The restructuring is
-kept because the pending queue is needed regardless of how the handler is eventually installed.
+An Objective-C++ `AppleEventHandler` was added to catch `kAERevealSelection`, then deleted
+once measurement showed macOS never sends that event for `open -R`. See "`open -R <file>`
+reveals the file" for the reasoning.
 
 ## Troubleshooting
 
@@ -247,4 +263,4 @@ EOF
 ```
 
 Note that `open`/`open -R` routing to Dolphin depends on the `NSFileViewer`
-default; without it, `open -R` goes to Finder.
+default, and takes effect only after logging out and back in. See "Known gaps".
