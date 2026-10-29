@@ -1467,9 +1467,15 @@ namespace
 // lookup of "konsole" and "xterm". None of those exist on macOS, so the job fails
 // with "No terminal emulator found" and the menu entry silently does nothing.
 //
-// Fall back to a real terminal emulator here. Terminal.app is last: it works
-// everywhere, but a proper emulator (Ghostty, iTerm, ...) is what a macOS user
-// actually wants. An explicitly configured terminal still wins.
+// Fall back to a real terminal emulator here. Konsole comes first: it is the
+// terminal the embedded panel (F4) already runs, through KonsolePart, so both
+// share profiles and look alike. Terminal.app is last: it always exists, but a
+// dedicated emulator (Ghostty, iTerm, ...) is what a macOS user actually wants.
+// An explicitly configured terminal still wins.
+//
+// Returns true once a launch has been started, false when nothing suitable was
+// found; the caller then falls back to KTerminalLauncherJob. The launch itself
+// is asynchronous, so true does not mean a window has appeared.
 bool launchSystemTerminal(const QString &workingDirectory)
 {
     const KConfigGroup confGroup(KSharedConfig::openConfig(), QStringLiteral("General"));
@@ -1479,9 +1485,11 @@ bool launchSystemTerminal(const QString &workingDirectory)
 
     const QString path = workingDirectory.isEmpty() ? QDir::homePath() : workingDirectory;
 
-    // Each entry is an app name and the argument that makes it open in \a path.
-    // The first installed one wins.
+    // Each entry is an app bundle name and the argument that makes it open in
+    // \a path, with %1 replaced by the quoted path. The first installed one wins,
+    // so reorder this list to prefer another emulator.
     static const QList<QPair<QString, QString>> emulators = {
+        {QStringLiteral("konsole"), QStringLiteral("--workdir %1")},
         {QStringLiteral("Ghostty"), QStringLiteral("--working-directory=%1")},
         {QStringLiteral("iTerm"), QString()},
         {QStringLiteral("Alacritty"), QStringLiteral("--working-directory=%1")},
@@ -1490,12 +1498,26 @@ bool launchSystemTerminal(const QString &workingDirectory)
         {QStringLiteral("Terminal"), QString()},
     };
 
+    // Where app bundles are looked for. Terminal.app lives under
+    // /System/Applications/Utilities, not /Applications: without that entry the
+    // last resort was never found and the menu entry did nothing.
+    static const QStringList appDirs = {
+        QStringLiteral("/Applications"),
+        QDir::homePath() + QStringLiteral("/Applications"),
+        QStringLiteral("/System/Applications/Utilities"),
+    };
+
     for (const auto &[app, dirArg] : emulators) {
-        // Resolve through LaunchServices so both /Applications and ~/Applications work.
-        if (QFileInfo::exists(QStringLiteral("/Applications/%1.app").arg(app))) {
+        const bool installed = std::any_of(appDirs.cbegin(), appDirs.cend(), [&app](const QString &dir) {
+            return QFileInfo::exists(QStringLiteral("%1/%2.app").arg(dir, app));
+        });
+        if (installed) {
+            // -n starts a new instance: open(1) only forwards --args to an app it
+            // launches, so an already running emulator would ignore the directory.
             QStringList command{QStringLiteral("open"), QStringLiteral("-n"), QStringLiteral("-a"), app};
             if (!dirArg.isEmpty()) {
-                command << dirArg.arg(KShell::quoteArg(path));
+                // Without --args, open(1) parses the emulator's flag as its own and fails.
+                command << QStringLiteral("--args") << dirArg.arg(KShell::quoteArg(path));
             } else if (!QString::compare(app, QStringLiteral("Terminal"), Qt::CaseInsensitive)) {
                 // "open -a Terminal <dir>" is the only way to start Terminal.app in
                 // a given directory; it ignores the directory it was launched from.
@@ -1504,6 +1526,8 @@ bool launchSystemTerminal(const QString &workingDirectory)
                 // iTerm has no directory argument; it inherits the working directory.
                 command << QStringLiteral("--args");
             }
+            // The joined command goes through a shell, hence KShell::quoteArg() on
+            // the path above: a folder name with spaces stays one argument.
             auto *job = new KIO::CommandLauncherJob(command.join(QLatin1Char(' ')), nullptr);
             job->setWorkingDirectory(path);
             job->setDesktopName(QStringLiteral("org.kde.dolphin"));
