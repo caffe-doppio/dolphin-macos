@@ -51,9 +51,9 @@ This repository fixes those three problems, so you can have Dolphin and its embe
 | ✅ | **Open Terminal / Open Terminal Here** | Konsole, Ghostty, iTerm, Alacritty, kitty, WezTerm, then Terminal.app. |
 | ✅ | **`open <folder>`, `open -R <file>`** | After setting Dolphin as the [default file viewer](#make-dolphin-the-default-file-viewer) and logging out. |
 | ✅ | **Compress…** | `ditto`, `zip`, `tar`, and `7z` when installed. Single-item zips keep extended attributes, quarantine flag included. |
-| ✅ | **Places, removable media** | Solid's IOKit backend 💬. |
-| ⚠️ | **Open With** | Type an app path **without** the trailing slash; "Remember application association" has no effect. Both are upstream KIO bugs. |
-| ⚠️ | **Screen reader announcements in the file view** | Disabled to work around a crash in Qt's Cocoa accessibility bridge. Menus, toolbars and dialogs still work with VoiceOver. |
+| ✅ | **Places, removable media** | Solid's IOKit backend. |
+| ♻️ | **Open With** | Type an app path **without** the trailing slash; "Remember application association" has no effect. Both are upstream KIO bugs. |
+| ♻️ | **Screen reader announcements in the file view** | Disabled to work around a crash in Qt's Cocoa accessibility bridge. Menus, toolbars and dialogs still work with VoiceOver. |
 | ❌ | **Content search, tags, information panel** | They depend on Baloo, which is Linux-only. |
 
 Tested on an iMac M1, macOS 26.7.1, Xcode 27.1, Qt 6.12. The port it builds on was tested on macOS 26.5.2. Intel Macs are untested.
@@ -114,7 +114,7 @@ for app in build-install/dolphin.app build/bin/dolphin.app build/src/dolphin.app
 
 The last line matters. macOS registers every `.app` it sees, build copies included, and with four bundles named `org.kde.dolphin`, `open` may start one from the build tree. Run it again after each rebuild.
 
-> [!WARNING]
+> [!IMPORTANT]
 > **Keep the clone where it is.** The binary loads `libdolphinprivate` and `libdolphinvcs` from `build-install/lib` by absolute path, and Qt from `~/CraftRoot/lib`. Moving or deleting either breaks the app. A self-contained bundle is on the [roadmap](#changes-from-upstream).
 
 ## Terminal
@@ -142,7 +142,7 @@ Upstream Dolphin asks `KTerminalLauncherJob` for a terminal, which looks for a `
 | --- | --- | --- |
 | 1 | Konsole | `--workdir` |
 | 2 | Ghostty | `--working-directory=` |
-| 3 | iTerm | inherits it 💬 |
+| 3 | iTerm | inherits it |
 | 4 | Alacritty | `--working-directory=` |
 | 5 | kitty | `--directory=` |
 | 6 | WezTerm | `start --cwd` |
@@ -150,7 +150,7 @@ Upstream Dolphin asks `KTerminalLauncherJob` for a terminal, which looks for a `
 
 Apps are looked for in `/Applications`, `~/Applications` and `/System/Applications/Utilities`. To prefer another one, reorder `emulators` in `launchSystemTerminal()`, in [`src/dolphinmainwindow.cpp`](src/dolphinmainwindow.cpp).
 
-Only Konsole and Terminal.app have been tried 💬.
+Only Konsole and Terminal.app have been tried.
 
 ## Make Dolphin the default file viewer
 
@@ -206,7 +206,7 @@ Based on upstream `master` at 26.11.70.
 | Open Terminal through macOS apps | `src/dolphinmainwindow.cpp` |
 | Terminal.app found in `/System/Applications/Utilities`, Konsole first, `--args` before directory flags | `src/dolphinmainwindow.cpp` |
 
-All changes are behind `Q_OS_MACOS` or `APPLE`: the Linux build is meant to be unchanged, but nobody has built it from this branch yet 💬.
+All changes are behind `Q_OS_MACOS` or `APPLE`: the Linux build is meant to be unchanged, but nobody has built it from this branch yet.
 
 Next: a self-contained bundle (`macdeployqt`, or `craft --package`), so the app runs without `~/CraftRoot` and could be offered as a download.
 
@@ -226,7 +226,7 @@ GPL-2.0-or-later, like upstream Dolphin. Every file states its own license in it
 <!-- epistem:begin
 convention: epistem/1.2.0
 legend:
-  nature : 🔗 inference · 💭 hypothesis · 💬 unverified · ➖ unverifiable
+  nature : 🔗 inference · 💭 hypothesis · unverified · ➖ unverifiable
   cycle  : 🔜 to verify · 🔢 to quantify · ✔️ confirmed · ✖️ refuted
 ai:
   assisted: true
