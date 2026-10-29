@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: None
+# SPDX-License-Identifier: CC0-1.0
+
+# Same check as the pre-commit hook: only the lines a push or PR changes,
+# so upstream files that drift from .clang-format do not fail the build.
+name: clang-format
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Same major as the Craft toolchain, which .clang-format is written for.
+      - run: pipx install clang-format==20.1.7
+
+      - name: Check changed lines
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # A new branch has no "before" commit; check its last commit only.
+          if [ -z "$BASE" ] || [ "$BASE" = 0000000000000000000000000000000000000000 ]; then BASE=HEAD~1; fi
+          out=$(git clang-format --diff --extensions cpp,h,hpp,c "$BASE" 2>&1) || true
+          case "$out" in
+            *"no modified files to format"* | *"clang-format did not modify any files"*) exit 0 ;;
+          esac
+          echo "$out"
+          echo "::error::Unformatted changes. Run: git clang-format --extensions cpp,h,hpp,c $BASE"
+          exit 1
