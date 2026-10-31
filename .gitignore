@@ -37,3 +37,6 @@ kio-src/
 
 # GitHub PR & Issues
 .github/*.md
+
+# Context for coding assistant
+CLAUDE.md
