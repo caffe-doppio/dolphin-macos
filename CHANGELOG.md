@@ -15,11 +15,11 @@ Open work is kept in `TODO` comments next to the entry it belongs to.
 - 2026-10-31. An empty "Information" dock no longer covers the toolbar when Dolphin is built without Baloo ([#1](https://github.com/caffe-doppio/dolphin-macos/pull/1)).
 - 2026-10-31. Tests no longer hang waiting for a D-Bus session bus, which macOS does not have ([#2](https://github.com/caffe-doppio/dolphin-macos/pull/2)).
 - 2026-10-31. `handleUrl()` keeps a folder in the view on macOS instead of handing it to `QDesktopServices`. The cause is upstream commit `f1770cb0d` ([#3](https://github.com/caffe-doppio/dolphin-macos/pull/3)).
+- 2026-10-31. Files dropped on the Trash in the Dock go to the trash, as with Move to Trash. The Dock leaves that to the drag source, and Qt does not tell Dolphin it happened, so the drop end is read from Qt's view (`kitemlistmacdrag.mm`).
+  <!-- TODO: Report to Qt that QDrag::exec() never sees NSDragOperationDelete, then drop the hook. KIO's trash on macOS is ~/.Trash/KDE.trash, so Finder shows these files inside a KDE.trash folder, without Put Back: the same holds for Move to Trash, and changing it means changing kio_trash, not this drop. -->
 
 ### Known issues
 
-- Dropping files on the Trash in the Dock does nothing. Waiting over it until Finder opens the Trash window works.
-  <!-- TODO: The Dock answers NSDragOperationDelete and expects the drag source to trash the files. Qt 6.12.0 maps Delete to Qt::MoveAction (qcocoahelpers.mm) and does not pass the operation of an external drop back to QDrag::exec() (qnsview_dragging.mm, draggingSession:endedAtPoint:operation:), so KItemListController::startDragging() never learns about it. Fix: record the operation in macOS-only Objective-C++ code, then trash the URLs. Open question: whether KIO::trash reaches ~/.Trash on macOS, or NSFileManager trashItemAtURL: is needed. Report it to Qt as well. -->
 - The drag image shows a cut-out rectangle around the icon or preview.
   <!-- TODO: Need a screenshot and the view mode. Two candidates: KItemListWidget::createDragPixmap() paints the item in its selected state, and in the Details view KStandardItemListWidget::createDragPixmap() copies into a QPixmap without devicePixelRatio. -->
 - Qt's macOS accessibility bridge can delete a view's accessible interface while Dolphin still uses it ([QTBUG-149612](https://qt-project.atlassian.net/browse/QTBUG-149612)). Fixed in Qt 6.12.1, 6.13.0 and 6.8.10; Craft ships 6.12.0. This fork avoids the crash by turning Dolphin's custom accessibility announcements off on macOS (`c8268f09c`), so Dolphin's own announcements (current item, newly loaded folder) are not sent.
