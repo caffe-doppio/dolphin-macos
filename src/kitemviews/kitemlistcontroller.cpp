@@ -12,6 +12,9 @@
 #include "kitemlistselectionmanager.h"
 #include "kitemlistview.h"
 #include "private/kitemlistkeyboardsearchmanager.h"
+#ifdef Q_OS_MACOS
+#include "private/kitemlistmacdrag.h"
+#endif
 #include "private/kitemlistrubberband.h"
 #include "views/draganddrophelper.h"
 
@@ -1480,7 +1483,13 @@ void KItemListController::startDragging()
     const QPoint hotSpot((pixmap.width() / pixmap.devicePixelRatio()) / 2, 0);
     drag->setHotSpot(hotSpot);
 
+#ifdef Q_OS_MACOS
+    if (KItemListMacDrag::execEndsOnTrash(drag, Qt::MoveAction | Qt::CopyAction | Qt::LinkAction, Qt::CopyAction)) {
+        Q_EMIT selectedItemsDroppedOnTrash();
+    }
+#else
     drag->exec(Qt::MoveAction | Qt::CopyAction | Qt::LinkAction, Qt::CopyAction);
+#endif
 
     if (customAnnouncementsEnabled()) {
         QAccessibleEvent accessibilityEvent(view(), QAccessible::DragDropStart);

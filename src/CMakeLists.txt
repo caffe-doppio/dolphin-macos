@@ -189,6 +189,14 @@ ecm_qt_declare_logging_category(dolphinprivate
     EXPORT DOLPHIN
 )
 
+if(APPLE)
+    target_sources(dolphinprivate PRIVATE
+        kitemviews/private/kitemlistmacdrag.mm
+        kitemviews/private/kitemlistmacdrag.h
+    )
+    target_link_libraries(dolphinprivate PRIVATE "-framework AppKit")
+endif()
+
 if(HAVE_BALOO)
     target_sources(dolphinprivate PRIVATE
         views/tooltips/dolphinfilemetadatawidget.cpp

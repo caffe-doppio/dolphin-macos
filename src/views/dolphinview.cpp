@@ -221,6 +221,7 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent)
     connect(controller, &KItemListController::escapePressed, this, &DolphinView::stopLoading);
     connect(controller, &KItemListController::modelChanged, this, &DolphinView::slotModelChanged);
     connect(controller, &KItemListController::selectedItemTextPressed, this, &DolphinView::slotSelectedItemTextPressed);
+    connect(controller, &KItemListController::selectedItemsDroppedOnTrash, this, &DolphinView::trashSelectedItems);
     connect(controller, &KItemListController::increaseZoom, this, &DolphinView::slotIncreaseZoom);
     connect(controller, &KItemListController::decreaseZoom, this, &DolphinView::slotDecreaseZoom);
     connect(controller, &KItemListController::swipeUp, this, &DolphinView::slotSwipeUp);
