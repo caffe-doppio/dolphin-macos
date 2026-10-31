@@ -106,11 +106,13 @@ cmake --install build
 **4. Install and register the app.**
 
 ```bash
-cp -R build-install/dolphin.app /Applications/Dolphin.app
+ditto build-install/dolphin.app /Applications/Dolphin.app
 LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 "$LSREGISTER" -f /Applications/Dolphin.app
 for app in build-install/dolphin.app build/bin/dolphin.app build/src/dolphin.app; do "$LSREGISTER" -u "$app"; done
 ```
+
+Use `ditto`, not `cp -R`: when `/Applications/Dolphin.app` already exists, `cp -R` copies the new bundle inside it as `Dolphin.app/dolphin.app`, and the old binary keeps running. To update after a rebuild, run `cmake --install build`, then this whole step again.
 
 The last line matters. macOS registers every `.app` it sees, build copies included, and with four bundles named `org.kde.dolphin`, `open` may start one from the build tree. Run it again after each rebuild.
 
@@ -222,20 +224,3 @@ Upstream Dolphin's own README, with its development philosophy: [invent.kde.org/
 ## License
 
 GPL-2.0-or-later, like upstream Dolphin. Every file states its own license in its SPDX header; full texts in [`LICENSES/`](LICENSES/).
-
-<!-- epistem:begin
-convention: epistem/1.2.0
-legend:
-  nature : 🔗 inference · 💭 hypothesis · unverified · ➖ unverifiable
-  cycle  : 🔜 to verify · 🔢 to quantify · ✔️ confirmed · ✖️ refuted
-ai:
-  assisted: true
-  model: claude-opus-5-5
-  scope: writing, build investigation, code comments
-  framework: AI Fluency 4D (Delegation, Description, Discernment, Diligence)
-  accountability: Sasha
-doc:
-  version: 0.01.000
-  versioning: pridever/0.2.0 (https://pridever.org/)
-  demarque: false
-epistem:end -->
