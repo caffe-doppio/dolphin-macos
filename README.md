@@ -3,7 +3,7 @@
 # 🐬 Dolphin for macOS
 
 **KDE's file manager, built for Apple silicon.**<br>
-Upstream Dolphin on KDE Frameworks 6, with the fixes it needs on macOS: it launches from the Finder and the Dock, embeds a terminal, and opens your terminal app in the current folder.
+Upstream Dolphin on @KDE Frameworks 6, with the fixes it needs on macOS: it launches from the Finder and the Dock, embeds a terminal, and opens your terminal app in the current folder.
 
 [![License: GPL-2.0-or-later](https://img.shields.io/badge/license-GPL--2.0--or--later-blue)](LICENSES/)
 [![macOS 26 · arm64](https://img.shields.io/badge/macOS_26-arm64-000000?logo=apple&logoColor=F0F0F0)](#requirements)
@@ -13,12 +13,12 @@ Upstream Dolphin on KDE Frameworks 6, with the fixes it needs on macOS: it launc
 
 ![Dolphin on macOS: a folder in icon view, the Places panel on the left, and the embedded terminal panel at the bottom with a zsh prompt in the same folder](assets/screenshots/dolphin-terminal-panel.png)
 
-<sub>Dolphin 26.11.70 on macOS 26.7.1, with the terminal panel open (<kbd>F4</kbd>).</sub>
+<sub>Dolphin 26.11.70 on macOS 26.7.2, with the terminal panel open (<kbd>F4</kbd>).</sub>
 
 </div>
 
 > [!IMPORTANT]
-> **Unofficial.** @KDE does not ship or support Dolphin on macOS. Report problems with this port here, not on bugs.kde.org, unless you have reproduced them on Linux.
+> **Unofficial.** KDE does not ship or support Dolphin on macOS. Report problems with this port here, not on bugs.kde.org, unless you have reproduced them on Linux.
 
 ## Contents
 
