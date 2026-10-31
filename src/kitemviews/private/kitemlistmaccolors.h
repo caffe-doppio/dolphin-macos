@@ -7,6 +7,8 @@
 #ifndef KITEMLISTMACCOLORS_H
 #define KITEMLISTMACCOLORS_H
 
+#include "dolphin_export.h"
+
 #include <QColor>
 #include <QString>
 
@@ -21,6 +23,13 @@ namespace KItemListMacColors
  * icon tint chosen in System Settings, so it is read from the system folder icon.
  */
 QColor systemFolderColor();
+
+/**
+ * Makes the system folder colour the application's accent colour, as Plasma does with its
+ * own, and keeps it there when the palette changes. Icons drawn without colours of their own,
+ * such as those of the Places panel, take it. Call once, after the application object exists.
+ */
+DOLPHIN_EXPORT void useSystemFolderColorAsAccent();
 
 /**
  * Colour index of the most recently added Finder tag of \a localPath that has a colour,

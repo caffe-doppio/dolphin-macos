@@ -6,7 +6,9 @@
 
 #include "kitemlistmaccolors.h"
 
+#include <QApplication>
 #include <QFile>
+#include <QPalette>
 
 #import <AppKit/AppKit.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
@@ -68,6 +70,42 @@ QColor KItemListMacColors::systemFolderColor()
     // ponytail: read once, so a change in System Settings shows after Dolphin restarts.
     static const QColor color = sampleSystemFolderColor();
     return color;
+}
+
+namespace
+{
+void setApplicationAccent()
+{
+    const QColor color = KItemListMacColors::systemFolderColor();
+    QPalette palette = QApplication::palette();
+    // setPalette() sends ApplicationPaletteChange again: stop once the accent is in place.
+    if (palette.color(QPalette::Accent) == color) {
+        return;
+    }
+    palette.setColor(QPalette::Accent, color);
+    QApplication::setPalette(palette);
+}
+
+// A colour scheme change, such as dark mode, replaces the whole application palette.
+class ApplicationPaletteFollower : public QObject
+{
+public:
+    using QObject::QObject;
+
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (watched == qApp && event->type() == QEvent::ApplicationPaletteChange) {
+            setApplicationAccent();
+        }
+        return false;
+    }
+};
+}
+
+void KItemListMacColors::useSystemFolderColorAsAccent()
+{
+    setApplicationAccent();
+    qApp->installEventFilter(new ApplicationPaletteFollower(qApp));
 }
 
 int KItemListMacColors::tagColorIndex(const QString &localPath)

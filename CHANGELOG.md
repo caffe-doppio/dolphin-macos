@@ -8,18 +8,20 @@ Open work is kept in `TODO` comments next to the entry it belongs to.
 
 ### Added
 
-- 2026-10-31. Folder icons take the colour Finder gives them: the system folder colour, which follows the accent colour and the icon tint, or the colour of the folder's most recent Finder tag. Breeze icons keep their shape; only `.ColorScheme-Accent` changes.
-  <!-- TODO: (1) A tag added while the folder is shown appears only when the folder is opened again: KDirLister does not report xattr changes. FSEvents has kFSEventStreamEventFlagItemXattrMod. (2) The system folder colour is read once, so a change in System Settings needs a restart. (3) Report to KIconThemes that paletteId() leaves the accent out of KIconLoader's cache key, then drop the alpha workaround in KStandardItemListWidget::pixmapForIcon(). -->
+- 2026-10-31. Folder icons take the colour Finder gives them: the system folder colour, which follows the accent colour and the icon tint, or the colour of the folder's most recent Finder tag. Breeze icons keep their shape; only `.ColorScheme-Accent` changes ([#7](https://github.com/caffe-doppio/dolphin-macos/pull/7)).
+  <!-- TODO: (1) A tag added while the folder is shown appears only when the folder is opened again: KDirLister does not report xattr changes. FSEvents has kFSEventStreamEventFlagItemXattrMod. (2) The system folder colour is read once, so a change in System Settings needs a restart. (3) Report to KIconThemes that paletteId() leaves the accent out of KIconLoader's cache key, then drop the alpha workaround in KStandardItemListWidget::pixmapForIcon(). In the same report: KIconLoader::customPalette() returns an empty palette, since setCustomPalette() does not store it, so KFilePlacesView's delegate always calls resetPalette() after painting. -->
 - 2026-10-31. macOS job in GitHub Actions: build against Craft's KF6 and run ctest. Four tests are excluded, with their reasons in `.github/workflows/macos.yml` ([#2](https://github.com/caffe-doppio/dolphin-macos/pull/2)).
 
 ### Fixed
 
-- 2026-10-31. Dolphin loads its own plugins (folder colour and other file item actions, settings pages) instead of the ones upstream Dolphin installs in `~/CraftRoot/plugins`. They are installed in `dolphin.app/Contents/PlugIns`, which `main.cpp` puts first in Qt's library paths.
+- 2026-10-31. The Places panel shows folders in the system folder colour, like the views. KFilePlacesView draws its icons with the view's palette, so the colour is set as the application's accent colour.
+- 2026-10-31. Choosing a folder icon or colour from the context menu updates the folder at once. The action told the folder listers through KDirNotify, over D-Bus, which macOS does not have; without a session bus it now marks the folder dirty in KDirWatch ([#5](https://github.com/caffe-doppio/dolphin-macos/pull/5)).
+- 2026-10-31. Dolphin loads its own plugins (folder colour and other file item actions, settings pages) instead of the ones upstream Dolphin installs in `~/CraftRoot/plugins`. They are installed in `dolphin.app/Contents/PlugIns`, which `main.cpp` puts first in Qt's library paths ([#6](https://github.com/caffe-doppio/dolphin-macos/pull/6)).
   <!-- TODO: A run from build/ has no PlugIns directory and still loads Craft's plugins: use QT_PLUGIN_PATH=$PWD/build/bin. -->
 - 2026-10-31. An empty "Information" dock no longer covers the toolbar when Dolphin is built without Baloo ([#1](https://github.com/caffe-doppio/dolphin-macos/pull/1)).
 - 2026-10-31. Tests no longer hang waiting for a D-Bus session bus, which macOS does not have ([#2](https://github.com/caffe-doppio/dolphin-macos/pull/2)).
 - 2026-10-31. `handleUrl()` keeps a folder in the view on macOS instead of handing it to `QDesktopServices`. The cause is upstream commit `f1770cb0d` ([#3](https://github.com/caffe-doppio/dolphin-macos/pull/3)).
-- 2026-10-31. Files dropped on the Trash in the Dock go to the trash, as with Move to Trash. The Dock leaves that to the drag source, and Qt does not tell Dolphin it happened, so the drop end is read from Qt's view (`kitemlistmacdrag.mm`).
+- 2026-10-31. Files dropped on the Trash in the Dock go to the trash, as with Move to Trash. The Dock leaves that to the drag source, and Qt does not tell Dolphin it happened, so the drop end is read from Qt's view (`kitemlistmacdrag.mm`) ([#4](https://github.com/caffe-doppio/dolphin-macos/pull/4)).
   <!-- TODO: Report to Qt that QDrag::exec() never sees NSDragOperationDelete, then drop the hook. KIO's trash on macOS is ~/.Trash/KDE.trash, so Finder shows these files inside a KDE.trash folder, without Put Back: the same holds for Move to Trash, and changing it means changing kio_trash, not this drop. -->
 
 ### Known issues

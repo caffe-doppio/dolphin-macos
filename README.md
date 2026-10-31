@@ -208,6 +208,12 @@ Based on upstream `master` at 26.11.70.
 | Compress action without Ark | `src/dolphincontextmenu.cpp` |
 | Open Terminal through macOS apps | `src/dolphinmainwindow.cpp` |
 | Terminal.app found in `/System/Applications/Utilities`, Konsole first, `--args` before directory flags | `src/dolphinmainwindow.cpp` |
+| Information dock not created without Baloo, so it no longer covers the toolbar | `src/dolphinmainwindow.cpp` |
+| `handleUrl()` finds the type first, so a folder stays in the view | `src/dolphinmainwindow.cpp` |
+| Files dropped on the Dock's Trash go to the trash | `src/kitemviews/`, `src/views/dolphinview.cpp` |
+| Folder icons take Finder's colour: system folder colour, or the most recent Finder tag | `src/kitemviews/`, `src/main.cpp` |
+| Folder icon and colour changes refresh the view without D-Bus | `src/itemactions/setfoldericonitemaction.cpp` |
+| Tests run without a D-Bus session bus; macOS job in GitHub Actions | `src/tests/CMakeLists.txt`, `.github/workflows/macos.yml` |
 
 All changes are behind `Q_OS_MACOS` or `APPLE`: the Linux build is meant to be unchanged, but nobody has built it from this branch yet.
 
