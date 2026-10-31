@@ -191,10 +191,12 @@ ecm_qt_declare_logging_category(dolphinprivate
 
 if(APPLE)
     target_sources(dolphinprivate PRIVATE
+        kitemviews/private/kitemlistmaccolors.mm
+        kitemviews/private/kitemlistmaccolors.h
         kitemviews/private/kitemlistmacdrag.mm
         kitemviews/private/kitemlistmacdrag.h
     )
-    target_link_libraries(dolphinprivate PRIVATE "-framework AppKit")
+    target_link_libraries(dolphinprivate PRIVATE "-framework AppKit" "-framework UniformTypeIdentifiers")
 endif()
 
 if(HAVE_BALOO)
