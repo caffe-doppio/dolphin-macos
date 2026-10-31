@@ -8,6 +8,13 @@
 <dict>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
+    <!--
+      The bundle has no .lproj, so system frameworks would answer in English. Finder
+      tags are matched by name ("Vert", not "Green"), so AppKit must use the user's
+      language. Dolphin's own strings come from its KDE translations either way.
+    -->
+    <key>CFBundleAllowMixedLocalizations</key>
+    <true/>
     <key>CFBundleExecutable</key>
     <string>dolphin</string>
     <key>CFBundleIconFile</key>
