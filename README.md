@@ -117,7 +117,7 @@ Use `ditto`, not `cp -R`: when `/Applications/Dolphin.app` already exists, `cp -
 The last line matters. macOS registers every `.app` it sees, build copies included, and with four bundles named `org.kde.dolphin`, `open` may start one from the build tree. Run it again after each rebuild.
 
 > [!IMPORTANT]
-> **Keep the clone where it is.** The binary loads `libdolphinprivate` and `libdolphinvcs` from `build-install/lib` by absolute path, and Qt from `~/CraftRoot/lib`. Moving or deleting either breaks the app. A self-contained bundle is on the [roadmap](#changes-from-upstream).
+> **Keep the clone where it is.** The binary loads `libdolphinprivate` and `libdolphinvcs` from `build-install/lib` by absolute path, and Qt from `~/CraftRoot/lib`. Moving or deleting either breaks the app. Dolphin's own plugins (file item actions, settings pages) are in the bundle, under `Contents/PlugIns`. A self-contained bundle is on the [roadmap](#changes-from-upstream).
 
 ## Terminal
 
@@ -202,6 +202,7 @@ Based on upstream `master` at 26.11.70.
 | --- | --- |
 | `Dolphin.app` bundle: `Info.plist`, `org.kde.dolphin` identifier, icon, folder handler | `CMakeLists.txt`, `src/CMakeLists.txt`, `src/dolphin.app.in/` |
 | D-Bus disabled in-process, so LaunchServices can start the app | `src/main.cpp` |
+| Plugins installed in the bundle and searched first, ahead of upstream Dolphin's in `~/CraftRoot/plugins` | `CMakeLists.txt`, `src/main.cpp` |
 | `open <folder>` and `open -R <file>` handled at application level (`QFileOpenEvent`) | `src/main.cpp` |
 | Three accessibility crashes fixed, announcements disabled on macOS | `src/kitemviews/` |
 | Compress action without Ark | `src/dolphincontextmenu.cpp` |

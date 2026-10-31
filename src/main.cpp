@@ -149,6 +149,14 @@ int main(int argc, char **argv)
 
 #ifdef Q_OS_MACOS
     macOSApplication app(argc, argv);
+    // This build's plugins (file item actions, settings pages) are installed in the bundle.
+    // Qt lists the bundle's PlugIns directory after its own plugin path, where upstream
+    // Dolphin's plugins may sit under the same ids, and the first plugin found wins.
+    // addLibraryPath() leaves a listed path in place, so remove it first to move it to the
+    // front. A directory that does not exist, as in the build tree, is ignored.
+    const QString bundlePlugins = QCoreApplication::applicationDirPath() + QStringLiteral("/../PlugIns");
+    QCoreApplication::removeLibraryPath(bundlePlugins);
+    QCoreApplication::addLibraryPath(bundlePlugins);
 #else
     QApplication app(argc, argv);
 #endif
