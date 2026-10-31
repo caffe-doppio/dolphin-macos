@@ -12,6 +12,9 @@
 #include "dolphin_generalsettings.h"
 #include "dolphindebug.h"
 #include "private/kfileitemmodelsortalgorithm.h"
+#ifdef Q_OS_MACOS
+#include "private/kitemlistmaccolors.h"
+#endif
 #include "views/draganddrophelper.h"
 
 #include <KDirLister>
@@ -2245,6 +2248,15 @@ SmallHash KFileItemModel::retrieveData(const KFileItem &item, const ItemData *pa
     if (m_requestRole[IsLinkRole] && item.isLink()) {
         data.insert(sharedValue("isLink"), true);
     }
+
+#ifdef Q_OS_MACOS
+    // One getxattr() call: fast on a local disk, but a round trip on a network share.
+    if (isDir && item.isLocalFile() && !item.isSlow()) {
+        if (const int tagColorIndex = KItemListMacColors::tagColorIndex(item.localPath())) {
+            data.insert(sharedValue("tagColorIndex"), tagColorIndex);
+        }
+    }
+#endif
 
     if (m_requestRole[IsHiddenRole]) {
         // all "temporary" file types are identified by glob, currentMimeType is therefore enough.

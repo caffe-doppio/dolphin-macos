@@ -10,9 +10,13 @@
 #include "kfileitemlistview.h"
 #include "private/kfileitemclipboard.h"
 #include "private/kitemlistroleeditor.h"
+#ifdef Q_OS_MACOS
+#include "private/kitemlistmaccolors.h"
+#endif
 #include "private/kitemviewsutils.h"
 #include "private/kpixmapmodifier.h"
 
+#include <KIconColors>
 #include <KIconEffect>
 #include <KIconLoader>
 #include <KIconUtils>
@@ -1102,7 +1106,7 @@ void KStandardItemListWidget::updatePixmapCache()
     bool updatePixmap = (m_pixmap.width() != maxIconWidth || m_pixmap.height() != maxIconHeight);
     if (!updatePixmap && m_dirtyContent) {
         updatePixmap = m_dirtyContentRoles.isEmpty() || m_dirtyContentRoles.contains("iconPixmap") || m_dirtyContentRoles.contains("iconName")
-            || m_dirtyContentRoles.contains("iconOverlays");
+            || m_dirtyContentRoles.contains("iconOverlays") || m_dirtyContentRoles.contains("tagColorIndex");
     }
 
     if (updatePixmap) {
@@ -1143,9 +1147,15 @@ void KStandardItemListWidget::updatePixmapCache()
                 iconName = QStringLiteral("unknown");
             }
             const bool hasFocus = scene()->views()[0]->parentWidget()->hasFocus();
+            QColor accent;
+#ifdef Q_OS_MACOS
+            const int tagColorIndex = values.value("tagColorIndex").toInt();
+            accent = tagColorIndex ? KItemListMacColors::tagColor(tagColorIndex) : KItemListMacColors::systemFolderColor();
+#endif
             m_pixmap = pixmapForIcon(iconName,
                                      QSize(maxIconWidth, maxIconHeight),
-                                     m_layout != IconsLayout && isActiveWindow() && isPressed() && hasFocus ? QIcon::Selected : QIcon::Normal);
+                                     m_layout != IconsLayout && isActiveWindow() && isPressed() && hasFocus ? QIcon::Selected : QIcon::Normal,
+                                     accent);
 
         } else {
             if (m_pixmap.width() / m_pixmap.devicePixelRatio() != maxIconWidth || m_pixmap.height() / m_pixmap.devicePixelRatio() != maxIconHeight) {
@@ -1750,7 +1760,7 @@ void KStandardItemListWidget::closeRoleEditor()
     m_roleEditor = nullptr;
 }
 
-QPixmap KStandardItemListWidget::pixmapForIcon(const QString &name, const QSize &size, QIcon::Mode mode) const
+QPixmap KStandardItemListWidget::pixmapForIcon(const QString &name, const QSize &size, QIcon::Mode mode, const QColor &accent) const
 {
     static const QIcon fallbackIcon = QIcon::fromTheme(QStringLiteral("unknown"));
     const qreal dpr = KItemViewsUtils::devicePixelRatio(this);
@@ -1758,11 +1768,31 @@ QPixmap KStandardItemListWidget::pixmapForIcon(const QString &name, const QSize 
     int iconHeight = size.height();
     QSize iconSize = QSize(iconHeight, iconHeight);
 
-    const QString key = "KStandardItemListWidget:" % name % ":" % QString::number(iconHeight) % "@" % QString::number(dpr) % ":" % QString::number(mode);
+    const QString key = "KStandardItemListWidget:" % name % ":" % QString::number(iconHeight) % "@" % QString::number(dpr) % ":" % QString::number(mode) % ":"
+        % (accent.isValid() ? accent.name() : QString());
     QPixmap pixmap;
 
     if (!QPixmapCache::find(key, &pixmap)) {
-        QIcon icon = QIcon::fromTheme(name);
+        QIcon icon;
+        if (accent.isValid()) {
+            KIconColors colors(QApplication::palette());
+            colors.setAccent(accent);
+            // KIconLoader's pixmap cache key holds text, highlight, highlightedText and background,
+            // not the accent (paletteId() in KIconThemes 6.31), so the first accent loaded would be
+            // returned for every other. Icon stylesheets use QColor::name(), which drops the alpha:
+            // carrying the accent in the alpha of these colours changes the key, not the icon.
+            // Remove once KIconThemes adds the accent to the key.
+            const auto withAlpha = [](QColor color, int alpha) {
+                color.setAlpha(alpha);
+                return color;
+            };
+            colors.setText(withAlpha(colors.text(), accent.red()));
+            colors.setHighlight(withAlpha(colors.highlight(), accent.green()));
+            colors.setHighlightedText(withAlpha(colors.highlightedText(), accent.blue()));
+            icon = KDE::icon(name, colors);
+        } else {
+            icon = QIcon::fromTheme(name);
+        }
         if (icon.isNull()) {
             icon = QIcon(name);
         }

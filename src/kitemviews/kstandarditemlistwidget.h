@@ -255,7 +255,11 @@ private:
      */
     void closeRoleEditor();
 
-    QPixmap pixmapForIcon(const QString &name, const QSize &size, QIcon::Mode mode) const;
+    /**
+     * @param accent Colour for the icon's .ColorScheme-Accent parts, such as the body of
+     *               a Breeze folder. If invalid, the icon theme's colours are used.
+     */
+    QPixmap pixmapForIcon(const QString &name, const QSize &size, QIcon::Mode mode, const QColor &accent) const;
 
     /**
      * @return Preferred size of the rating-image based on the given
