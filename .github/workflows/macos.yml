@@ -30,11 +30,14 @@ jobs:
           key: craft-macos-26-arm64-${{ hashFiles('.kde-ci.yml') }}
           restore-keys: craft-macos-26-arm64-
 
+      # The bootstrap picks the Android ABI whenever ANDROID_SDK_ROOT and
+      # ANDROID_NDK are set, and GitHub's macOS runners set both.
       - name: Install Craft
         run: |
           [ -d "$CRAFT_ROOT/craft" ] && exit 0
           curl -fsSL https://raw.githubusercontent.com/KDE/craft/master/setup/CraftBootstrap.py -o "$RUNNER_TEMP/setup.py"
-          python3 "$RUNNER_TEMP/setup.py" --prefix "$CRAFT_ROOT" --use-defaults
+          env -u ANDROID_SDK_ROOT -u ANDROID_NDK python3 "$RUNNER_TEMP/setup.py" --prefix "$CRAFT_ROOT" --use-defaults
+          grep '^ABI' "$CRAFT_ROOT/etc/CraftSettings.ini"
 
       # --install-deps installs what the upstream Dolphin blueprint needs, not
       # Dolphin itself: an installed libdolphinprivate would shadow this tree's.
