@@ -27,6 +27,13 @@ include(KDEInstallDirs)
 include(KDECMakeSettings)
 include(KDECompilerSettings NO_POLICY_SCOPE)
 
+if(APPLE)
+    # Qt searches its own plugin directory first, and Craft installs upstream Dolphin's
+    # plugins there, with the same ids: those would load instead of this tree's. Install
+    # them in the bundle instead; main.cpp searches that directory first.
+    set(KDE_INSTALL_PLUGINDIR "dolphin.app/Contents/PlugIns")
+endif()
+
 include(ECMSetupVersion)
 include(ECMGenerateHeaders)
 include(ECMGenerateDBusServiceFile)

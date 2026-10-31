@@ -12,6 +12,8 @@ Open work is kept in `TODO` comments next to the entry it belongs to.
 
 ### Fixed
 
+- 2026-10-31. Dolphin loads its own plugins (folder colour and other file item actions, settings pages) instead of the ones upstream Dolphin installs in `~/CraftRoot/plugins`. They are installed in `dolphin.app/Contents/PlugIns`, which `main.cpp` puts first in Qt's library paths.
+  <!-- TODO: A run from build/ has no PlugIns directory and still loads Craft's plugins: use QT_PLUGIN_PATH=$PWD/build/bin. -->
 - 2026-10-31. An empty "Information" dock no longer covers the toolbar when Dolphin is built without Baloo ([#1](https://github.com/caffe-doppio/dolphin-macos/pull/1)).
 - 2026-10-31. Tests no longer hang waiting for a D-Bus session bus, which macOS does not have ([#2](https://github.com/caffe-doppio/dolphin-macos/pull/2)).
 - 2026-10-31. `handleUrl()` keeps a folder in the view on macOS instead of handing it to `QDesktopServices`. The cause is upstream commit `f1770cb0d` ([#3](https://github.com/caffe-doppio/dolphin-macos/pull/3)).
