@@ -168,3 +168,11 @@ if (Gem_test-unit_FOUND)
     add_test(NAME servicemenutest
     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../settings/contextmenu/test/test_run.rb)
 endif()
+
+# macOS has no session bus, and libdbus waits for one without a timeout: the
+# first D-Bus call of a test blocks until ctest kills it. main.cpp disables the
+# bus the same way for the app, but tests do not go through main().
+if(APPLE)
+    get_property(_dolphin_tests DIRECTORY PROPERTY TESTS)
+    set_property(TEST ${_dolphin_tests} APPEND PROPERTY ENVIRONMENT "DBUS_SESSION_BUS_ADDRESS=disabled:")
+endif()
