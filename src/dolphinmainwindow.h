@@ -56,7 +56,6 @@ constexpr QLatin1String customCommand{"CUSTOM_COMMAND"};
 
 namespace KIO
 {
-class OpenUrlJob;
 class CommandLauncherJob;
 }
 namespace SelectionMode
@@ -796,7 +795,7 @@ private:
     SelectionMode::ActionTextHelper *m_actionTextHelper;
     DisabledActionNotifier *m_disabledActionNotifier;
 
-    KIO::OpenUrlJob *m_lastHandleUrlOpenJob;
+    KJob *m_lastHandleUrlJob;
 
     TerminalPanel *m_terminalPanel;
     PlacesPanel *m_placesPanel;

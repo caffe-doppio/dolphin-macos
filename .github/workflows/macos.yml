@@ -66,12 +66,12 @@ jobs:
           cmake --build "$GITHUB_WORKSPACE/build" -j"$(sysctl -n hw.ncpu)"
 
       # Known failures on macOS, each to be fixed in its own change:
-      # - dolphinmainwindowtest: since upstream f1770cb0d, handleUrl() waits for
-      #   OpenUrlJob::mimeTypeFound(), which KIO never emits on macOS and Windows:
-      #   it hands the URL to QDesktopServices, which fails offscreen and opens a
-      #   modal error box that blocks the test.
-      # - servicemenushortcutmanagertest, viewpropertiestest, kfileitemmodeltest:
-      #   not diagnosed yet.
+      # - dolphinmainwindowtest: 7 of 45 functions. testWindowTitle expects "Home"
+      #   where the title shows the full path; testAccessibilityTree finds a
+      #   QToolButton with no accessible name; the three rename tests time out
+      #   waiting for the model to see the change on disk.
+      # - kfileitemmodeltest: the same wait, for a file made hidden.
+      # - servicemenushortcutmanagertest, viewpropertiestest: not diagnosed yet.
       - name: Test
         env:
           QT_QPA_PLATFORM: offscreen
