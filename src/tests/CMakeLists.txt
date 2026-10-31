@@ -169,6 +169,13 @@ if (Gem_test-unit_FOUND)
     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../settings/contextmenu/test/test_run.rb)
 endif()
 
+if(APPLE)
+    # KItemListMacColorsTest
+    ecm_add_test(kitemlistmaccolorstest.mm LINK_LIBRARIES dolphinprivate Qt6::Test "-framework Foundation")
+    target_link_options(kitemlistmaccolorstest PRIVATE
+        "LINKER:-sectcreate,__TEXT,__info_plist,${CMAKE_CURRENT_SOURCE_DIR}/kitemlistmaccolorstest-info.plist")
+endif()
+
 # macOS has no session bus, and libdbus waits for one without a timeout: the
 # first D-Bus call of a test blocks until ctest kills it. main.cpp disables the
 # bus the same way for the app, but tests do not go through main().

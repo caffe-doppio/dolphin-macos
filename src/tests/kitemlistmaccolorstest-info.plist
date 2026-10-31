@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  SPDX-FileCopyrightText: 2026 Sasha <sasha@etdeuxmains.fr>
+  SPDX-License-Identifier: CC0-1.0
+
+  Embedded in kitemlistmaccolorstest, which has no bundle: Finder tag names must
+  come in the user's language, as in Dolphin.app (see its Info.plist).
+-->
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>org.kde.dolphin.kitemlistmaccolorstest</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleAllowMixedLocalizations</key>
+    <true/>
+</dict>
+</plist>

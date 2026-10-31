@@ -171,3 +171,37 @@ QColor KItemListMacColors::tagColor(int index)
         return color;
     }
 }
+
+bool KItemListMacColors::setTagColorIndex(const QString &localPath, int index)
+{
+    bool written;
+    @autoreleasepool {
+        // Finder's colour tags carry the names of its colour labels ("Red", localised).
+        // ponytail: a colour tag renamed in Finder is seen as a plain tag and kept.
+        NSArray<NSString *> *colorNames = NSWorkspace.sharedWorkspace.fileLabels;
+        NSURL *url = [NSURL fileURLWithPath:localPath.toNSString()];
+        NSArray<NSString *> *current = nil;
+        [url getResourceValue:&current forKey:NSURLTagNamesKey error:nil];
+
+        NSMutableArray<NSString *> *tags = [NSMutableArray array];
+        for (NSString *tag in current) {
+            if (![colorNames containsObject:tag]) {
+                [tags addObject:tag];
+            }
+        }
+        if (index >= 1 && index <= 7 && index < static_cast<int>(colorNames.count)) {
+            [tags addObject:colorNames[index]];
+        }
+        // Through NSURL rather than the extended attribute itself: macOS resolves each name to
+        // its colour index and keeps the legacy Finder label in com.apple.FinderInfo in step.
+        written = [url setResourceValue:tags forKey:NSURLTagNamesKey error:nil];
+    }
+    Q_EMIT KItemListMacTagNotifier::instance()->tagsChanged(localPath);
+    return written;
+}
+
+KItemListMacTagNotifier *KItemListMacTagNotifier::instance()
+{
+    static KItemListMacTagNotifier notifier;
+    return &notifier;
+}

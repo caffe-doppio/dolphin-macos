@@ -37,5 +37,9 @@ if(NOT WIN32)
         KF6::I18n
         KF6::KIOCore
         KF6::KIOWidgets)
+    if(APPLE)
+        # Finder tags: KItemListMacColors, which also tells the folder models of the change.
+        target_link_libraries(setfoldericonitemaction dolphinprivate)
+    endif()
 endif()
 

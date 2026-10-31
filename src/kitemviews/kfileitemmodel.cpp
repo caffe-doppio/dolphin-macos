@@ -293,6 +293,17 @@ KFileItemModel::KFileItemModel(QObject *parent)
     m_dirLister->setAutoErrorHandlingEnabled(false);
     m_dirLister->setDelayedMimeTypes(true);
 
+#ifdef Q_OS_MACOS
+    connect(KItemListMacTagNotifier::instance(), &KItemListMacTagNotifier::tagsChanged, this, [this](const QString &localPath) {
+        const int itemIndex = index(QUrl::fromLocalFile(localPath));
+        if (itemIndex >= 0) {
+            SmallHash values;
+            values.insert(sharedValue("tagColorIndex"), KItemListMacColors::tagColorIndex(localPath));
+            setData(itemIndex, values);
+        }
+    });
+#endif
+
     const QWidget *parentWidget = qobject_cast<QWidget *>(parent);
     if (parentWidget) {
         m_dirLister->setMainWindow(parentWidget->window());

@@ -16,7 +16,6 @@
 #include "private/kitemviewsutils.h"
 #include "private/kpixmapmodifier.h"
 
-#include <KIconColors>
 #include <KIconEffect>
 #include <KIconLoader>
 #include <KIconUtils>
@@ -1775,21 +1774,7 @@ QPixmap KStandardItemListWidget::pixmapForIcon(const QString &name, const QSize 
     if (!QPixmapCache::find(key, &pixmap)) {
         QIcon icon;
         if (accent.isValid()) {
-            KIconColors colors(QApplication::palette());
-            colors.setAccent(accent);
-            // KIconLoader's pixmap cache key holds text, highlight, highlightedText and background,
-            // not the accent (paletteId() in KIconThemes 6.31), so the first accent loaded would be
-            // returned for every other. Icon stylesheets use QColor::name(), which drops the alpha:
-            // carrying the accent in the alpha of these colours changes the key, not the icon.
-            // Remove once KIconThemes adds the accent to the key.
-            const auto withAlpha = [](QColor color, int alpha) {
-                color.setAlpha(alpha);
-                return color;
-            };
-            colors.setText(withAlpha(colors.text(), accent.red()));
-            colors.setHighlight(withAlpha(colors.highlight(), accent.green()));
-            colors.setHighlightedText(withAlpha(colors.highlightedText(), accent.blue()));
-            icon = KDE::icon(name, colors);
+            icon = KItemViewsUtils::iconWithAccent(name, accent);
         } else {
             icon = QIcon::fromTheme(name);
         }
