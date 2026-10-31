@@ -155,8 +155,6 @@ Upstream Dolphin asks `KTerminalLauncherJob` for a terminal, which looks for a `
 
 Apps are looked for in `/Applications`, `~/Applications` and `/System/Applications/Utilities`. To prefer another one, reorder `emulators` in `launchSystemTerminal()`, in [`src/dolphinmainwindow.cpp`](src/dolphinmainwindow.cpp).
 
-Only Konsole and Terminal.app have been tried.
-
 ## Folder colours
 
 Dolphin keeps Breeze's folder icons, which cover far more cases than macOS's (`folder-git`, `folder-docker`…), and gives them the colour Finder shows:
@@ -168,9 +166,6 @@ Dolphin keeps Breeze's folder icons, which cover far more cases than macOS's (`f
 | an icon chosen in Dolphin with a colour of its own | that icon's colour (Finder does not show it) |
 
 The colour menu in Dolphin's context menu offers Finder's colours, in Finder's order. A colour picked there becomes the folder's Finder colour tag, and **Default** removes the colour tags: tags with other names, such as "Work", stay. Emblem icons (Development, Music…) are KDE-only and stored in the folder's `.directory` file; they take the folder's colour too.
-
-> [!NOTE]
-> A tag changed in Finder shows in Dolphin once the folder is opened again. A change to the system folder colour shows after Dolphin restarts. The Properties dialog draws folders in the system colour, without tags.
 
 ## Make Dolphin the default file viewer
 
