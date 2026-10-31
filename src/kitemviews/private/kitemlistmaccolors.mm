@@ -6,8 +6,11 @@
 
 #include "kitemlistmaccolors.h"
 
+#include <QFile>
+
 #import <AppKit/AppKit.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+#include <sys/xattr.h>
 
 namespace
 {
@@ -65,4 +68,68 @@ QColor KItemListMacColors::systemFolderColor()
     // ponytail: read once, so a change in System Settings shows after Dolphin restarts.
     static const QColor color = sampleSystemFolderColor();
     return color;
+}
+
+int KItemListMacColors::tagColorIndex(const QString &localPath)
+{
+    // A binary plist array of "Name\nindex" strings, in the order the tags were added.
+    // A tag without a colour, such as a custom one, has no index or index 0.
+    static const char attribute[] = "com.apple.metadata:_kMDItemUserTags";
+    const QByteArray path = QFile::encodeName(localPath);
+    const ssize_t size = getxattr(path.constData(), attribute, nullptr, 0, 0, XATTR_NOFOLLOW);
+    if (size <= 0) {
+        return 0;
+    }
+    QByteArray value(size, Qt::Uninitialized);
+    if (getxattr(path.constData(), attribute, value.data(), value.size(), 0, XATTR_NOFOLLOW) != size) {
+        return 0;
+    }
+
+    @autoreleasepool {
+        NSData *data = [NSData dataWithBytesNoCopy:value.data() length:value.size() freeWhenDone:NO];
+        id tags = [NSPropertyListSerialization propertyListWithData:data options:NSPropertyListImmutable format:nullptr error:nullptr];
+        if (![tags isKindOfClass:NSArray.class]) {
+            return 0;
+        }
+        for (id tag in [tags reverseObjectEnumerator]) {
+            if (![tag isKindOfClass:NSString.class]) {
+                continue;
+            }
+            const NSRange newline = [tag rangeOfString:@"\n" options:NSBackwardsSearch];
+            if (newline.location == NSNotFound) {
+                continue;
+            }
+            const int index = [[tag substringFromIndex:newline.location + 1] intValue];
+            if (index >= 1 && index <= 7) {
+                return index;
+            }
+        }
+    }
+    return 0;
+}
+
+QColor KItemListMacColors::tagColor(int index)
+{
+    @autoreleasepool {
+        NSColor *colors[] = {nil,
+                             NSColor.systemGrayColor,
+                             NSColor.systemGreenColor,
+                             NSColor.systemPurpleColor,
+                             NSColor.systemBlueColor,
+                             NSColor.systemYellowColor,
+                             NSColor.systemRedColor,
+                             NSColor.systemOrangeColor};
+        if (index < 1 || index > 7) {
+            return QColor();
+        }
+        // System colours are resolved for an appearance: use the application's, so that
+        // the colour follows dark mode and increased contrast like Finder's.
+        NSColor *systemColor = colors[index];
+        __block QColor color;
+        NSAppearance *appearance = NSApp ? NSApp.effectiveAppearance : NSAppearance.currentDrawingAppearance;
+        [appearance performAsCurrentDrawingAppearance:^{
+            color = toQColor(systemColor);
+        }];
+        return color;
+    }
 }

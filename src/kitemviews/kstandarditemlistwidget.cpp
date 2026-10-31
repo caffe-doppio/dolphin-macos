@@ -1106,7 +1106,7 @@ void KStandardItemListWidget::updatePixmapCache()
     bool updatePixmap = (m_pixmap.width() != maxIconWidth || m_pixmap.height() != maxIconHeight);
     if (!updatePixmap && m_dirtyContent) {
         updatePixmap = m_dirtyContentRoles.isEmpty() || m_dirtyContentRoles.contains("iconPixmap") || m_dirtyContentRoles.contains("iconName")
-            || m_dirtyContentRoles.contains("iconOverlays");
+            || m_dirtyContentRoles.contains("iconOverlays") || m_dirtyContentRoles.contains("tagColorIndex");
     }
 
     if (updatePixmap) {
@@ -1149,7 +1149,8 @@ void KStandardItemListWidget::updatePixmapCache()
             const bool hasFocus = scene()->views()[0]->parentWidget()->hasFocus();
             QColor accent;
 #ifdef Q_OS_MACOS
-            accent = KItemListMacColors::systemFolderColor();
+            const int tagColorIndex = values.value("tagColorIndex").toInt();
+            accent = tagColorIndex ? KItemListMacColors::tagColor(tagColorIndex) : KItemListMacColors::systemFolderColor();
 #endif
             m_pixmap = pixmapForIcon(iconName,
                                      QSize(maxIconWidth, maxIconHeight),

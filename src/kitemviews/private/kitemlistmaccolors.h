@@ -8,6 +8,7 @@
 #define KITEMLISTMACCOLORS_H
 
 #include <QColor>
+#include <QString>
 
 /**
  * Folder colours as Finder shows them, so that Dolphin and Finder agree.
@@ -21,6 +22,16 @@ namespace KItemListMacColors
  */
 QColor systemFolderColor();
 
+/**
+ * Colour index of the most recently added Finder tag of \a localPath that has a colour,
+ * from 1 (gray) to 7 (orange), or 0 if there is none. Finder tints the folder with it.
+ */
+int tagColorIndex(const QString &localPath);
+
+/**
+ * The system colour of the tag colour \a index, in the current light or dark appearance.
+ */
+QColor tagColor(int index);
 }
 
 #endif // KITEMLISTMACCOLORS_H
