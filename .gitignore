@@ -34,3 +34,6 @@ kio-src/
 
 # build output of the macOS port
 /build.log
+
+# GitHub PR & Issues
+.github/*.md
