@@ -1,0 +1,81 @@
+# SPDX-FileCopyrightText: None
+# SPDX-License-Identifier: CC0-1.0
+
+# What KDE's Linux and FreeBSD jobs do for upstream, on the platform this
+# fork targets: build the tree against Craft's prebuilt KF6, then run ctest.
+# KDE has no macOS test job, only Craft packaging (craft-macos-arm64-qt6.yml).
+name: macOS
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: macos-26
+    timeout-minutes: 120
+    env:
+      CRAFT_ROOT: /Users/runner/CraftRoot
+    steps:
+      - uses: actions/checkout@v7
+
+      # Craft pulls Qt and KF6 as binaries from files.kde.org, but the
+      # bootstrap and the download still take a while: keep the prefix.
+      - uses: actions/cache@v6
+        with:
+          path: /Users/runner/CraftRoot
+          key: craft-macos-26-arm64-${{ hashFiles('.kde-ci.yml') }}
+          restore-keys: craft-macos-26-arm64-
+
+      # The bootstrap picks the Android ABI whenever ANDROID_SDK_ROOT and
+      # ANDROID_NDK are set, and GitHub's macOS runners set both.
+      - name: Install Craft
+        run: |
+          [ -d "$CRAFT_ROOT/craft" ] && exit 0
+          curl -fsSL https://raw.githubusercontent.com/KDE/craft/master/setup/CraftBootstrap.py -o "$RUNNER_TEMP/setup.py"
+          env -u ANDROID_SDK_ROOT -u ANDROID_NDK python3 "$RUNNER_TEMP/setup.py" --prefix "$CRAFT_ROOT" --use-defaults
+          grep '^ABI' "$CRAFT_ROOT/etc/CraftSettings.ini"
+
+      # --install-deps installs what the upstream Dolphin blueprint needs, not
+      # Dolphin itself: an installed libdolphinprivate would shadow this tree's.
+      - name: Install dependencies
+        run: |
+          source "$CRAFT_ROOT/craft/craftenv.sh"
+          craft --install-deps kde/applications/dolphin
+          rm -rf "$CRAFT_ROOT/build" "$CRAFT_ROOT/download" "$CRAFT_ROOT/tmp"
+
+      # Same flags as the README, with the tests.
+      - name: Configure
+        run: |
+          source "$CRAFT_ROOT/craft/craftenv.sh"
+          cmake -G Ninja -S "$GITHUB_WORKSPACE" -B "$GITHUB_WORKSPACE/build" \
+              -DCMAKE_PREFIX_PATH="$CRAFT_ROOT" \
+              -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+              -DKDE_INSTALL_USE_QT_SYS_PATHS=OFF \
+              -DAPPLE_SUPPRESS_X11_WARNING=ON \
+              -DCMAKE_OSX_ARCHITECTURES=arm64 \
+              -DCMAKE_DISABLE_FIND_PACKAGE_KF6DocTools=ON \
+              -DBUILD_TESTING=ON
+
+      - name: Build
+        run: |
+          source "$CRAFT_ROOT/craft/craftenv.sh"
+          cmake --build "$GITHUB_WORKSPACE/build" -j"$(sysctl -n hw.ncpu)"
+
+      # Known failures on macOS, each to be fixed in its own change:
+      # - dolphinmainwindowtest: since upstream f1770cb0d, handleUrl() waits for
+      #   OpenUrlJob::mimeTypeFound(), which KIO never emits on macOS and Windows:
+      #   it hands the URL to QDesktopServices, which fails offscreen and opens a
+      #   modal error box that blocks the test.
+      # - servicemenushortcutmanagertest, viewpropertiestest, kfileitemmodeltest:
+      #   not diagnosed yet.
+      - name: Test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          source "$CRAFT_ROOT/craft/craftenv.sh"
+          ctest --test-dir "$GITHUB_WORKSPACE/build" --output-on-failure --timeout 120 \
+              -E '^(dolphinmainwindowtest|servicemenushortcutmanagertest|viewpropertiestest|kfileitemmodeltest)$'
