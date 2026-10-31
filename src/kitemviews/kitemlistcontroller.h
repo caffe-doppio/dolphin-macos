@@ -227,6 +227,12 @@ Q_SIGNALS:
 
     void selectedItemTextPressed(int index);
 
+    /**
+     * Is emitted when the selected items have been dragged onto the Trash in the macOS Dock,
+     * which expects the drag source to move them to the trash.
+     */
+    void selectedItemsDroppedOnTrash();
+
     void scrollerStop();
     void increaseZoom();
     void decreaseZoom();
