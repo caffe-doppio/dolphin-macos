@@ -17,6 +17,9 @@
 #if HAVE_KUSERFEEDBACK
 #include "userfeedback/dolphinfeedbackprovider.h"
 #endif
+#ifdef Q_OS_MACOS
+#include "kitemviews/private/kitemlistmaccolors.h"
+#endif
 
 #include <KAboutData>
 #include <KConfigGui>
@@ -157,6 +160,8 @@ int main(int argc, char **argv)
     const QString bundlePlugins = QCoreApplication::applicationDirPath() + QStringLiteral("/../PlugIns");
     QCoreApplication::removeLibraryPath(bundlePlugins);
     QCoreApplication::addLibraryPath(bundlePlugins);
+    // Folder icons drawn outside the item views, as in the Places panel, take Finder's colour too.
+    KItemListMacColors::useSystemFolderColorAsAccent();
 #else
     QApplication app(argc, argv);
 #endif
