@@ -2487,12 +2487,14 @@ void DolphinMainWindow::setupDockWidgets()
     connect(lockLayoutAction, &KDualAction::triggered, this, &DolphinMainWindow::togglePanelLockState);
 
     // Setup "Information"
+    // Without Baloo the dock would be a child of the window that no dock area
+    // manages, and it would show at (0,0) over the toolbar: do not create it.
+#if HAVE_BALOO
     DolphinDockWidget *infoDock = new DolphinDockWidget(i18nc("@title:window", "Information"), this);
     infoDock->setLocked(lock);
     infoDock->setObjectName(QStringLiteral("infoDock"));
     infoDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
 
-#if HAVE_BALOO
     InformationPanel *infoPanel = new InformationPanel(infoDock);
     infoPanel->setCustomContextMenuActions({lockLayoutAction});
     connect(infoPanel, &InformationPanel::urlActivated, this, &DolphinMainWindow::handleUrl);
@@ -2523,7 +2525,6 @@ void DolphinMainWindow::setupDockWidgets()
                               "about the items your mouse is hovering over or about the selected "
                               "items. Otherwise it informs you about the currently viewed folder.<nl/>"
                               "For single items a preview of their contents is provided.</para>"));
-#endif
     infoDock->setWhatsThis(xi18nc("@info:whatsthis",
                                   "<para>This panel "
                                   "provides in-depth information about the items your mouse is "
@@ -2532,6 +2533,7 @@ void DolphinMainWindow::setupDockWidgets()
                                   "preview of their contents is provided.</para><para>You can configure "
                                   "which and how details are given here by right-clicking.</para>")
                            + panelWhatsThis);
+#endif
 
     // Setup "Folders"
     DolphinDockWidget *foldersDock = new DolphinDockWidget(i18nc("@title:window", "Folders"));
@@ -2633,7 +2635,9 @@ void DolphinMainWindow::setupDockWidgets()
 #endif // HAVE_TERMINAL
 
     if (GeneralSettings::version() < 200) {
+#if HAVE_BALOO
         infoDock->hide();
+#endif
         foldersDock->hide();
     }
 
