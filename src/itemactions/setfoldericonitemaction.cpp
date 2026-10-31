@@ -9,11 +9,13 @@
 
 #include <KConfigGroup>
 #include <KDesktopFile>
+#include <KDirWatch>
 #include <KFileItem>
 #include <KLocalizedString>
 #include <KPluginFactory>
 #ifdef QT_DBUS_LIB
 #include <KDirNotify>
+#include <QDBusConnection>
 #endif
 
 #include <QActionGroup>
@@ -64,9 +66,17 @@ void SetFolderIconItemAction::setFolderIcon(bool check)
         }
     }
 
+    desktopFile.sync();
+
 #ifdef QT_DBUS_LIB
-    org::kde::KDirNotify::emitFilesChanged({m_url});
+    if (QDBusConnection::sessionBus().isConnected()) {
+        org::kde::KDirNotify::emitFilesChanged({m_url});
+        return;
+    }
 #endif
+    // Without a session bus, as on macOS, KDirNotify reaches no one. The dir listers of this
+    // process also follow KDirWatch: marking the folder dirty refreshes its item.
+    KDirWatch::self()->setDirty(m_localUrl.toLocalFile());
 }
 
 class ButtonsWithSubMenuWidgetAction : public QWidgetAction
