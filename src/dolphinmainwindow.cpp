@@ -51,6 +51,7 @@
 #include <KFileItemListProperties>
 #include <KIO/CommandLauncherJob>
 #include <KIO/JobUiDelegateFactory>
+#include <KIO/MimeTypeFinderJob>
 #include <KIO/OpenFileManagerWindowJob>
 #include <KIO/OpenUrlJob>
 #include <KJobWidgets>
@@ -124,7 +125,7 @@ DolphinMainWindow::DolphinMainWindow()
     , m_settingsDialog()
     , m_bookmarkHandler(nullptr)
     , m_disabledActionNotifier(nullptr)
-    , m_lastHandleUrlOpenJob(nullptr)
+    , m_lastHandleUrlJob(nullptr)
     , m_terminalPanel(nullptr)
     , m_placesPanel(nullptr)
     , m_tearDownFromPlacesRequested(false)
@@ -1610,27 +1611,37 @@ void DolphinMainWindow::editSettings()
 
 void DolphinMainWindow::handleUrl(const QUrl &url)
 {
-    delete m_lastHandleUrlOpenJob;
-    m_lastHandleUrlOpenJob = nullptr;
+    delete m_lastHandleUrlJob;
+    m_lastHandleUrlJob = nullptr;
 
-    m_lastHandleUrlOpenJob = new KIO::OpenUrlJob(url);
-    m_lastHandleUrlOpenJob->setUiDelegate(KIO::createDefaultJobUiDelegate(KJobUiDelegate::AutoHandlingEnabled, this));
-    m_lastHandleUrlOpenJob->setShowOpenOrExecuteDialog(true);
+    // A folder goes to the view, anything else is opened. The type is found on its own first:
+    // KIO::OpenUrlJob reports it with mimeTypeFound() on Linux, but on macOS and Windows it hands
+    // every URL to QDesktopServices without finding the type, and a folder would leave Dolphin.
+    auto *mimeTypeJob = new KIO::MimeTypeFinderJob(url);
+    mimeTypeJob->setUiDelegate(KIO::createDefaultJobUiDelegate(KJobUiDelegate::AutoHandlingEnabled, this));
+    m_lastHandleUrlJob = mimeTypeJob;
 
-    connect(m_lastHandleUrlOpenJob, &KIO::OpenUrlJob::mimeTypeFound, this, [this, url](const QString &mimetype) {
-        if (mimetype == QLatin1String("inode/directory")) {
-            // If it's a dir, we'll take it from here
-            m_lastHandleUrlOpenJob->kill();
-            m_lastHandleUrlOpenJob = nullptr;
-            activeViewContainer()->setUrl(url);
+    connect(mimeTypeJob, &KJob::result, this, [this, mimeTypeJob, url]() {
+        m_lastHandleUrlJob = nullptr;
+        if (mimeTypeJob->error()) {
+            return;
         }
+        if (mimeTypeJob->mimeType() == QLatin1String("inode/directory")) {
+            activeViewContainer()->setUrl(url);
+            return;
+        }
+
+        auto *openUrlJob = new KIO::OpenUrlJob(url, mimeTypeJob->mimeType());
+        openUrlJob->setUiDelegate(KIO::createDefaultJobUiDelegate(KJobUiDelegate::AutoHandlingEnabled, this));
+        openUrlJob->setShowOpenOrExecuteDialog(true);
+        m_lastHandleUrlJob = openUrlJob;
+        connect(openUrlJob, &KJob::result, this, [this]() {
+            m_lastHandleUrlJob = nullptr;
+        });
+        openUrlJob->start();
     });
 
-    connect(m_lastHandleUrlOpenJob, &KIO::OpenUrlJob::result, this, [this]() {
-        m_lastHandleUrlOpenJob = nullptr;
-    });
-
-    m_lastHandleUrlOpenJob->start();
+    mimeTypeJob->start();
 }
 
 void DolphinMainWindow::slotWriteStateChanged(bool isFolderWritable)
