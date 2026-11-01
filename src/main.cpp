@@ -160,7 +160,8 @@ int main(int argc, char **argv)
     const QString bundlePlugins = QCoreApplication::applicationDirPath() + QStringLiteral("/../PlugIns");
     QCoreApplication::removeLibraryPath(bundlePlugins);
     QCoreApplication::addLibraryPath(bundlePlugins);
-    // Folder icons drawn outside the item views, as in the Places panel, take Finder's colour too.
+    // Folder icons drawn outside the item views, as in the Places panel, take Finder's colour too,
+    // and the widgets take the system accent colour instead of Breeze's blue.
     KItemListMacColors::useSystemFolderColorAsAccent();
 #else
     QApplication app(argc, argv);

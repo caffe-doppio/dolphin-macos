@@ -23,12 +23,14 @@ namespace KItemListMacColors
  * The colour Finder gives a folder without tags. It follows the accent colour and the
  * icon tint chosen in System Settings, so it is read from the system folder icon.
  */
-QColor systemFolderColor();
+DOLPHIN_EXPORT QColor systemFolderColor();
 
 /**
  * Makes the system folder colour the application's accent colour, as Plasma does with its
  * own, and keeps it there when the palette changes. Icons drawn without colours of their own,
- * such as those of the Places panel, take it. Call once, after the application object exists.
+ * such as those of the Places panel, take it. The highlight colour becomes the system accent
+ * colour, so that selections, check boxes and focus frames look like the rest of macOS.
+ * Call once, after the application object exists.
  */
 DOLPHIN_EXPORT void useSystemFolderColorAsAccent();
 

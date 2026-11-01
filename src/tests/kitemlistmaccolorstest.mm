@@ -6,17 +6,19 @@
 
 #include "kitemviews/private/kitemlistmaccolors.h"
 
+#include <QApplication>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
 
-#import <Foundation/Foundation.h>
+#import <AppKit/AppKit.h>
 
 class KItemListMacColorsTest : public QObject
 {
     Q_OBJECT
 
 private Q_SLOTS:
+    void testApplicationPalette();
     void testSetTagColorIndex();
 };
 
@@ -34,6 +36,25 @@ QStringList tagNames(const QString &path)
     }
     return names;
 }
+
+QColor systemAccentColor()
+{
+    NSColor *srgb = [NSColor.controlAccentColor colorUsingColorSpace:NSColorSpace.sRGBColorSpace];
+    return QColor::fromRgbF(srgb.redComponent, srgb.greenComponent, srgb.blueComponent);
+}
+}
+
+void KItemListMacColorsTest::testApplicationPalette()
+{
+    KItemListMacColors::useSystemFolderColorAsAccent();
+    // Widgets take the system accent colour, folder icons keep the folder colour.
+    QCOMPARE(QApplication::palette().color(QPalette::Highlight), systemAccentColor());
+    QCOMPARE(QApplication::palette().color(QPalette::Accent), KItemListMacColors::systemFolderColor());
+
+    // A colour scheme change, as KColorSchemeManager makes, replaces the whole palette.
+    QApplication::setPalette(QPalette(Qt::darkGray));
+    QCOMPARE(QApplication::palette().color(QPalette::Inactive, QPalette::Highlight), systemAccentColor());
+    QCOMPARE(QApplication::palette().color(QPalette::Accent), KItemListMacColors::systemFolderColor());
 }
 
 void KItemListMacColorsTest::testSetTagColorIndex()
@@ -69,6 +90,6 @@ void KItemListMacColorsTest::testSetTagColorIndex()
     QCOMPARE(spy.at(0).at(0).toString(), path);
 }
 
-QTEST_GUILESS_MAIN(KItemListMacColorsTest)
+QTEST_MAIN(KItemListMacColorsTest)
 
 #include "kitemlistmaccolorstest.moc"
