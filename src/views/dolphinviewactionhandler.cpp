@@ -10,6 +10,9 @@
 #include "kitemviews/kfileitemlisttostring.h"
 #include "kitemviews/kfileitemmodel.h"
 #include "selectionmode/actiontexthelper.h"
+#ifdef Q_OS_MACOS
+#include "views/dolphinmacopenwith.h"
+#endif
 #include "settings/viewpropertiesdialog.h"
 #include "views/zoomlevelinfo.h"
 #include "views/zoomwidgetaction.h"
@@ -914,6 +917,9 @@ void DolphinViewActionHandler::slotProperties()
     } else {
         dialog = new KPropertiesDialog(list, m_currentView);
     }
+#ifdef Q_OS_MACOS
+    DolphinMacOpenWith::adopt(dialog);
+#endif
 
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();

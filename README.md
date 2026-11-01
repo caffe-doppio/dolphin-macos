@@ -188,7 +188,7 @@ The Finder still owns the Desktop, and apps that call the Finder by name ("Show 
 ## Known issues
 
 - **Open With rejects app paths ending with `/`.** macOS returns `/Applications/Zed.app/` for a bundle, and KIO takes the text after the last `/` as the executable name. Type the path without the slash. Upstream KIO bug.
-- **"Remember application association" does nothing.** KIO writes freedesktop `mimeapps.list`, which macOS never reads. Use Finder's Get Info › Open with, or [`duti`](https://github.com/moretension/duti).
+- **"Remember application association" does nothing.** KIO writes freedesktop `mimeapps.list`, which macOS never reads. Use Properties › Open with › Change…, Finder's Get Info › Open with, or [`duti`](https://github.com/moretension/duti).
 - **The window may open behind other apps** when Dolphin is started by a background process rather than by you 💭.
 - **No file view announcements for screen readers**, see [What works](#what-works).
 - **Finder tag changes need the folder to be reopened**, and the Properties dialog ignores tags: see [Folder colours](#folder-colours).
@@ -229,6 +229,7 @@ Based on upstream `master` at 26.11.70.
 | Colour menu writes Finder colour tags, in Finder's colours and order | `src/itemactions/setfoldericonitemaction.cpp`, `src/kitemviews/private/kitemlistmaccolors.mm` |
 | System frameworks use the user's language (`CFBundleAllowMixedLocalizations`), so Finder tags match by name | `src/dolphin.app.in/Contents/Info.plist.in` |
 | Folder icon and colour changes refresh the view without D-Bus | `src/itemactions/setfoldericonitemaction.cpp` |
+| Properties dialog shows and changes the default application through LaunchServices | `src/views/dolphinmacopenwith.mm` |
 | Tests run without a D-Bus session bus; macOS job in GitHub Actions | `src/tests/CMakeLists.txt`, `.github/workflows/macos.yml` |
 
 All changes are behind `Q_OS_MACOS` or `APPLE`: the Linux build is meant to be unchanged, but nobody has built it from this branch yet.
