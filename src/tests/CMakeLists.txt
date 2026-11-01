@@ -184,6 +184,9 @@ if(APPLE)
 
     # MacCapacityBarStyleTest
     ecm_add_test(maccapacitybarstyletest.cpp LINK_LIBRARIES dolphinstatic Qt6::Test)
+
+    # DolphinMacPageFooterTest
+    ecm_add_test(dolphinmacpagefootertest.cpp LINK_LIBRARIES dolphinstatic Qt6::Test)
 endif()
 
 # macOS has no session bus, and libdbus waits for one without a timeout: the

@@ -18,6 +18,7 @@
 #include "userfeedback/dolphinfeedbackprovider.h"
 #endif
 #ifdef Q_OS_MACOS
+#include "dolphinmacpagefooter.h"
 #include "kitemviews/private/kitemlistmaccolors.h"
 #include "statusbar/maccapacitybarstyle.h"
 
@@ -192,6 +193,9 @@ int main(int argc, char **argv)
 #endif
 #endif
 
+#ifdef Q_OS_MACOS
+    installMacPageFooterMargins();
+#endif
 #if defined(Q_OS_MACOS) && KWIDGETSADDONS_VERSION < QT_VERSION_CHECK(6, 32, 0)
     // KWidgetsAddons 6.32 draws the bar this way itself: remove this then.
     installMacCapacityBarStyle();
