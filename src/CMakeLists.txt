@@ -495,8 +495,12 @@ target_sources(dolphinstatic PRIVATE
 )
 
 if(APPLE)
-    # The application icon, which the Breeze theme on macOS does not have.
-    target_sources(dolphinstatic PRIVATE dolphinmacos.qrc)
+    # dolphinmacos.qrc: the application icon, which the Breeze theme on macOS does not have.
+    target_sources(dolphinstatic PRIVATE
+        dolphinmacos.qrc
+        statusbar/maccapacitybarstyle.cpp
+        statusbar/maccapacitybarstyle.h
+    )
 endif()
 
 target_link_libraries(dolphinstatic
