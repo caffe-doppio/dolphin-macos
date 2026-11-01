@@ -16,6 +16,8 @@ Open work is kept in `TODO` comments next to the entry it belongs to.
 
 ### Fixed
 
+- 2026-10-31. Tools › Manage Disk Space Usage, and the free space button in the status bar, offer Storage Settings… instead of installing Filelight. Neither Filelight nor KDiskFree is packaged for macOS, so the menu opens System Settings › General › Storage, and the Tools item drops Filelight's icon. An installed Filelight is still offered as upstream does ([#13](https://github.com/caffe-doppio/dolphin-macos/pull/13)).
+- 2026-10-31. Dolphin loads its own plugins (folder colour and other file item actions, settings pages) instead of the ones upstream Dolphin installs in `~/CraftRoot/plugins`. They are installed in `dolphin.app/Contents/PlugIns`, which `main.cpp` puts first in Qt's library paths.
 - 2026-11-01. The Interface page of Configure Dolphin has its icon again: Dolphin's own, in the system accent colour, as Plasma shows it in its accent colour. The Breeze theme on macOS has no `org.kde.dolphin` icon and Qt does not look in `share/icons`, so the SVG is bundled in a macOS-only resource and drawn by `KIconEngine`, which colours its `.ColorScheme-Highlight` parts. Selected, the folder is black and the dolphin grey, as Plasma draws it on a light accent.
 - 2026-11-01. The Trash page of Configure Dolphin shows its macOS note as text instead of `<para>` markup.
   <!-- TODO: Report to kio-extras (26.08.2): kcm_trash's macOS labels hold KUIT markup that is never converted, so QLabel shows it as is. Then drop the conversion in TrashSettingsPage. -->
