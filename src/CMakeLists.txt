@@ -494,6 +494,11 @@ target_sources(dolphinstatic PRIVATE
     ${dolphin_dbus_SRCS}
 )
 
+if(APPLE)
+    # The application icon, which the Breeze theme on macOS does not have.
+    target_sources(dolphinstatic PRIVATE dolphinmacos.qrc)
+endif()
+
 target_link_libraries(dolphinstatic
     dolphinprivate
     KF6::CoreAddons

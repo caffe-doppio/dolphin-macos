@@ -16,6 +16,9 @@ Open work is kept in `TODO` comments next to the entry it belongs to.
 
 ### Fixed
 
+- 2026-11-01. The Interface page of Configure Dolphin has its icon again: Dolphin's own, in the system accent colour, as Plasma shows it in its accent colour. The Breeze theme on macOS has no `org.kde.dolphin` icon and Qt does not look in `share/icons`, so the SVG is bundled in a macOS-only resource and drawn by `KIconEngine`, which colours its `.ColorScheme-Highlight` parts. Selected, the folder is black and the dolphin grey, as Plasma draws it on a light accent.
+- 2026-11-01. The Trash page of Configure Dolphin shows its macOS note as text instead of `<para>` markup.
+  <!-- TODO: Report to kio-extras (26.08.2): kcm_trash's macOS labels hold KUIT markup that is never converted, so QLabel shows it as is. Then drop the conversion in TrashSettingsPage. -->
 - 2026-11-01. Alternate rows in the views and the Folders panel use the colour scheme's dark grey instead of a light grey that hid their text. The scheme is now applied before any window exists: Dolphin's item views copy their viewport's palette once, when they enter their scene, and during the main window's constructor that palette was still the macOS one, whose alternate row colour Qt makes opaque.
   <!-- TODO: Report to Dolphin that KItemListView::itemChange() copies the view's palette once and never follows its later changes: switching the colour scheme at run time can leave the same stale rows. -->
 - 2026-11-01. The line on the active tab, check boxes, radio buttons and selections use the macOS accent colour instead of Breeze's blue. The Breeze colour scheme sets the palette's highlight to its own blue, so it is replaced with the system accent colour after each palette change, next to the folder colour.
