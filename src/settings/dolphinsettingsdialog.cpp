@@ -19,6 +19,11 @@
 #endif
 
 #include <KAuthorized>
+#ifdef Q_OS_MACOS
+#include <KIconColors>
+#include <KIconEngine>
+#include <KIconLoader>
+#endif
 #include <KLocalizedString>
 #include <KMessageBox>
 #include <KRuntimePlatform>
@@ -44,7 +49,18 @@ DolphinSettingsDialog::DolphinSettingsDialog(const QUrl &url, QWidget *parent, K
     // Interface
     InterfaceSettingsPage *interfaceSettingsPage = new InterfaceSettingsPage(this);
     KPageWidgetItem *interfaceSettingsFrame = addPage(interfaceSettingsPage, i18nc("@title:group Interface settings", "Interface"));
+#ifdef Q_OS_MACOS
+    // The Breeze theme on macOS has no org.kde.dolphin icon, so it is bundled (dolphinmacos.qrc).
+    // KIconEngine paints its .ColorScheme-Highlight folder with the palette's highlight, which
+    // main() makes the system accent colour, as Plasma does with its own. Selected, it takes the
+    // highlighted text colour: black, as Plasma has it on a light accent, with the dolphin in grey.
+    Q_INIT_RESOURCE(dolphinmacos);
+    KIconColors iconColors(palette());
+    iconColors.setHighlightedText(Qt::black);
+    interfaceSettingsFrame->setIcon(QIcon(new KIconEngine(QStringLiteral(":/org.kde.dolphin/org.kde.dolphin.svg"), iconColors, KIconLoader::global())));
+#else
     interfaceSettingsFrame->setIcon(QIcon::fromTheme(QStringLiteral("org.kde.dolphin")));
+#endif
     connect(interfaceSettingsPage, &InterfaceSettingsPage::changed, this, &DolphinSettingsDialog::enableApply);
 
     // View
