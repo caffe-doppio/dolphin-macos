@@ -5,6 +5,7 @@
  */
 
 #include "panels/places/placespanel.h"
+#include "dolphinplacesmodelsingleton.h"
 
 #include <KFilePlacesModel>
 #include <KLocalizedString>
@@ -64,6 +65,9 @@ private Q_SLOTS:
     void testCustomContextMenuActionsInEmptyArea();
     void testCustomContextMenuActionsHiddenForItems();
     void testCustomContextMenuActionsRoundTrip();
+#ifdef Q_OS_MACOS
+    void testNoBalooPlaces();
+#endif
 
 private:
     // Find the first model index whose URL matches the given scheme.
@@ -357,6 +361,14 @@ void PlacesPanelTest::testCustomContextMenuActionsRoundTrip()
 
     QVERIFY(emptyAreaActions.contains(QStringLiteral("TestRoundTripAction")));
 }
+
+#ifdef Q_OS_MACOS
+// Baloo's timeline:/ worker does not exist on macOS, so its places must not show.
+void PlacesPanelTest::testNoBalooPlaces()
+{
+    QVERIFY(!indexForScheme(DolphinPlacesModelSingleton::instance().placesModel(), QStringLiteral("timeline")).isValid());
+}
+#endif
 
 QTEST_MAIN(PlacesPanelTest)
 

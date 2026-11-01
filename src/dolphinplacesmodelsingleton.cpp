@@ -9,6 +9,10 @@
 #include "views/draganddrophelper.h"
 
 #include <KAboutData>
+#ifdef Q_OS_MACOS
+#include <KConfig>
+#include <KConfigGroup>
+#endif
 
 #include <QCoreApplication>
 #include <QIcon>
@@ -118,8 +122,26 @@ bool DolphinPlacesModel::isTrash(const QModelIndex &index) const
     return url(index) == QUrl(QStringLiteral("trash:/"));
 }
 
+namespace
+{
+DolphinPlacesModel *createPlacesModel()
+{
+#ifdef Q_OS_MACOS
+    // KFilePlacesModel's constructor reads this key, true when missing, and then shows
+    // Baloo's places (Modified Today, Modified Yesterday). There is no Baloo on macOS,
+    // so nothing opens them. A value the user has set is kept.
+    KConfig config(QStringLiteral("baloofilerc"));
+    KConfigGroup basicSettings = config.group(QStringLiteral("Basic Settings"));
+    if (!basicSettings.hasKey("Indexing-Enabled")) {
+        basicSettings.writeEntry("Indexing-Enabled", false);
+    }
+#endif
+    return new DolphinPlacesModel();
+}
+}
+
 DolphinPlacesModelSingleton::DolphinPlacesModelSingleton()
-    : m_placesModel(new DolphinPlacesModel())
+    : m_placesModel(createPlacesModel())
 {
     // Destroy during QCoreApplication teardown, while KIO's KCoreDirListerCache is still alive.
     qAddPostRoutine([] {
