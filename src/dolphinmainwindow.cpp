@@ -2327,7 +2327,12 @@ void DolphinMainWindow::setupActions()
 
     QAction *manageDiskSpaceUsage = actionCollection()->addAction(QStringLiteral("manage_disk_space"));
     manageDiskSpaceUsage->setText(i18nc("@action:inmenu Tools", "Manage Disk Space Usage"));
+#ifdef Q_OS_MACOS
+    // The menu opens System Settings, not Filelight.
+    manageDiskSpaceUsage->setIcon(QIcon::fromTheme(QStringLiteral("disk-quota")));
+#else
     manageDiskSpaceUsage->setIcon(QIcon::fromTheme(QStringLiteral("filelight")));
+#endif
     m_diskSpaceUsageMenu = new DiskSpaceUsageMenu{this};
     manageDiskSpaceUsage->setMenu(m_diskSpaceUsageMenu);
 

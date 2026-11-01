@@ -74,6 +74,14 @@ void DiskSpaceUsageMenu::updateMenu()
     const KService::Ptr kdiskfree = KService::serviceByDesktopName(QStringLiteral("org.kde.kdf"));
 
     if (!filelight && !kdiskfree) {
+#ifdef Q_OS_MACOS
+        // Neither tool is packaged for macOS: System Settings shows disk usage and helps to free up space.
+        QAction *storageSettingsAction = addAction(QIcon::fromTheme(QStringLiteral("drive-harddisk")), i18nc("@action:inmenu", "Storage Settings…"));
+        connect(storageSettingsAction, &QAction::triggered, this, [] {
+            QDesktopServices::openUrl(QUrl(QStringLiteral("x-apple.systempreferences:com.apple.settings.Storage")));
+        });
+        return;
+#endif
         // Show an UI to install a tool to free up disk space because this is what a user pressing on a "free space" button would want.
         if (!m_installFilelightWidgetAction) {
             initialiseInstallFilelightWidgetAction();
