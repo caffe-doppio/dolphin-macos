@@ -77,12 +77,16 @@ namespace
 void setApplicationAccent()
 {
     const QColor color = KItemListMacColors::systemFolderColor();
+    // The Breeze style draws the active tab line, scroll bars, check boxes, focus frames and
+    // selections with Highlight, which the colour scheme sets to its own blue.
+    const QColor highlight = toQColor(NSColor.controlAccentColor);
     QPalette palette = QApplication::palette();
-    // setPalette() sends ApplicationPaletteChange again: stop once the accent is in place.
-    if (palette.color(QPalette::Accent) == color) {
+    // setPalette() sends ApplicationPaletteChange again: stop once both colours are in place.
+    if (palette.color(QPalette::Accent) == color && palette.color(QPalette::Highlight) == highlight) {
         return;
     }
     palette.setColor(QPalette::Accent, color);
+    palette.setColor(QPalette::Highlight, highlight);
     QApplication::setPalette(palette);
 }
 

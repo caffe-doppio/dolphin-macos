@@ -178,7 +178,7 @@ endif()
 
 if(APPLE)
     # KItemListMacColorsTest
-    ecm_add_test(kitemlistmaccolorstest.mm LINK_LIBRARIES dolphinprivate Qt6::Test "-framework Foundation")
+    ecm_add_test(kitemlistmaccolorstest.mm LINK_LIBRARIES dolphinprivate Qt6::Test "-framework AppKit")
     target_link_options(kitemlistmaccolorstest PRIVATE
         "LINKER:-sectcreate,__TEXT,__info_plist,${CMAKE_CURRENT_SOURCE_DIR}/kitemlistmaccolorstest-info.plist")
 endif()
