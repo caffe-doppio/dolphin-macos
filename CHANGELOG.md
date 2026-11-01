@@ -14,6 +14,7 @@ Open work is kept in `TODO` comments next to the entry it belongs to.
 
 ### Fixed
 
+- 2026-10-31. Tools › Manage Disk Space Usage, and the free space button in the status bar, offer Storage Settings… instead of installing Filelight. Neither Filelight nor KDiskFree is packaged for macOS, so the menu opens System Settings › General › Storage, and the Tools item drops Filelight's icon. An installed Filelight is still offered as upstream does ([#13](https://github.com/caffe-doppio/dolphin-macos/pull/13)).
 - 2026-10-31. Dolphin loads its own plugins (folder colour and other file item actions, settings pages) instead of the ones upstream Dolphin installs in `~/CraftRoot/plugins`. They are installed in `dolphin.app/Contents/PlugIns`, which `main.cpp` puts first in Qt's library paths.
   <!-- TODO: A run from build/ has no PlugIns directory and still loads Craft's plugins: use QT_PLUGIN_PATH=$PWD/build/bin. -->
 - 2026-10-31. An empty "Information" dock no longer covers the toolbar when Dolphin is built without Baloo ([#1](https://github.com/caffe-doppio/dolphin-macos/pull/1)).
