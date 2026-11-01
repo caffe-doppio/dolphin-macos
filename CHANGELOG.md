@@ -16,6 +16,8 @@ Open work is kept in `TODO` comments next to the entry it belongs to.
 
 ### Fixed
 
+- 2026-11-01. The Places panel no longer shows "Modified Today" and "Modified Yesterday", which did nothing: their `timeline:/` worker comes from Baloo, which macOS does not have. KIO shows them unless `baloofilerc` says `Indexing-Enabled=false`, and the key is missing on macOS, so Dolphin writes it there when it is absent. A value already in the file is kept.
+  <!-- TODO: (1) Report to KIO that isFileIndexingEnabled() in kfileplacesmodel.cpp should also check KProtocolInfo::isKnownProtocol("timeline"), then drop the write in dolphinplacesmodelsingleton.cpp. (2) Next iteration: Modified Today/Yesterday through Spotlight (kMDItemFSContentChangeDate), with a KIO worker or mdfind. -->
 - 2026-11-01. The Interface page of Configure Dolphin has its icon again: Dolphin's own, in the system accent colour, as Plasma shows it in its accent colour. The Breeze theme on macOS has no `org.kde.dolphin` icon and Qt does not look in `share/icons`, so the SVG is bundled in a macOS-only resource and drawn by `KIconEngine`, which colours its `.ColorScheme-Highlight` parts. Selected, the folder is black and the dolphin grey, as Plasma draws it on a light accent.
 - 2026-11-01. The Trash page of Configure Dolphin shows its macOS note as text instead of `<para>` markup.
   <!-- TODO: Report to kio-extras (26.08.2): kcm_trash's macOS labels hold KUIT markup that is never converted, so QLabel shows it as is. Then drop the conversion in TrashSettingsPage. -->
