@@ -18,7 +18,11 @@
 #include "userfeedback/dolphinfeedbackprovider.h"
 #endif
 #ifdef Q_OS_MACOS
+#include "dolphinmacpagefooter.h"
 #include "kitemviews/private/kitemlistmaccolors.h"
+#include "statusbar/maccapacitybarstyle.h"
+
+#include <kwidgetsaddons_version.h>
 
 #include <KColorSchemeManager>
 #endif
@@ -187,6 +191,14 @@ int main(int argc, char **argv)
 #if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
     QApplication::setStyle(QStringLiteral("breeze"));
 #endif
+#endif
+
+#ifdef Q_OS_MACOS
+    installMacPageFooterMargins();
+#endif
+#if defined(Q_OS_MACOS) && KWIDGETSADDONS_VERSION < QT_VERSION_CHECK(6, 32, 0)
+    // KWidgetsAddons 6.32 draws the bar this way itself: remove this then.
+    installMacCapacityBarStyle();
 #endif
 
     KLocalizedString::setApplicationDomain(dolphinTranslationDomain);
