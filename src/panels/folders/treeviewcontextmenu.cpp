@@ -9,6 +9,9 @@
 
 #include "folderspanel.h"
 #include "global.h"
+#ifdef Q_OS_MACOS
+#include "views/dolphinmacopenwith.h"
+#endif
 
 #include <KConfigGroup>
 #include <KFileItemListProperties>
@@ -202,6 +205,9 @@ void TreeViewContextMenu::deleteItem()
 void TreeViewContextMenu::showProperties()
 {
     KPropertiesDialog *dialog = new KPropertiesDialog(m_fileItem.url(), m_parent);
+#ifdef Q_OS_MACOS
+    DolphinMacOpenWith::adopt(dialog);
+#endif
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();
 }

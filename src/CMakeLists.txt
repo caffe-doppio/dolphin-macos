@@ -195,6 +195,8 @@ if(APPLE)
         kitemviews/private/kitemlistmaccolors.h
         kitemviews/private/kitemlistmacdrag.mm
         kitemviews/private/kitemlistmacdrag.h
+        views/dolphinmacopenwith.mm
+        views/dolphinmacopenwith.h
     )
     target_link_libraries(dolphinprivate PRIVATE "-framework AppKit" "-framework UniformTypeIdentifiers")
 endif()

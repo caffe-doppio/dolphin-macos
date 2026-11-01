@@ -160,6 +160,13 @@ if(HAVE_BALOO)
         LINK_LIBRARIES dolphinprivate dolphinstatic Qt6::Test)
 endif()
 
+if(APPLE)
+    # DolphinMacOpenWithTest
+    ecm_add_test(dolphinmacopenwithtest.mm
+        TEST_NAME dolphinmacopenwithtest
+        LINK_LIBRARIES dolphinprivate Qt6::Test "-framework AppKit")
+endif()
+
 find_gem(test-unit)
 set_package_properties(Gem_test-unit PROPERTIES
     TYPE RECOMMENDED
