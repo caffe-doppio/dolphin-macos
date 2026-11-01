@@ -6,6 +6,10 @@
 
 #include "setfoldericonitemaction.h"
 #include "../dolphindebug.h"
+#ifdef Q_OS_MACOS
+#include "../kitemviews/private/kitemlistmaccolors.h"
+#include "../kitemviews/private/kitemviewsutils.h"
+#endif
 
 #include <KConfigGroup>
 #include <KDesktopFile>
@@ -13,7 +17,9 @@
 #include <KFileItem>
 #include <KLocalizedString>
 #include <KPluginFactory>
-#ifdef QT_DBUS_LIB
+// KIO built without D-Bus, as on macOS, has no KDirNotify even when QtDBus is linked.
+#if defined(QT_DBUS_LIB) && __has_include(<KDirNotify>)
+#define HAVE_KDIRNOTIFY 1
 #include <KDirNotify>
 #include <QDBusConnection>
 #endif
@@ -22,6 +28,7 @@
 #include <QBoxLayout>
 #include <QEvent>
 #include <QFocusEvent>
+#include <QHash>
 #include <QKeyEvent>
 #include <QMenu>
 #include <QPushButton>
@@ -36,6 +43,51 @@ bool isDefaultFolderIcon(const QString &iconName)
 {
     return iconName.isEmpty() || iconName == QLatin1String("folder") || iconName == QLatin1String("inode-directory");
 }
+
+#ifdef Q_OS_MACOS
+// Finder's tag colour index for the folder colours it also has, 0 for the others (cyan, brown).
+int finderColorIndex(const QString &iconName)
+{
+    static const QHash<QString, int> indexes = {
+        {QStringLiteral("folder-grey"), 1},
+        {QStringLiteral("folder-green"), 2},
+        {QStringLiteral("folder-violet"), 3},
+        {QStringLiteral("folder-blue"), 4},
+        {QStringLiteral("folder-yellow"), 5},
+        {QStringLiteral("folder-red"), 6},
+        {QStringLiteral("folder-orange"), 7},
+    };
+    return indexes.value(iconName);
+}
+
+// Finder's colours in Finder's order: cyan and brown have no Finder tag, so they would show in
+// Dolphin only. The five buttons are red to blue; violet and grey follow Default in the submenu.
+QList<QPair<KLocalizedString, QString>> inFinderOrder(const QList<QPair<KLocalizedString, QString>> &icons)
+{
+    static const QStringList finderOrder = {QStringLiteral("folder-red"),
+                                            QStringLiteral("folder-orange"),
+                                            QStringLiteral("folder-yellow"),
+                                            QStringLiteral("folder-green"),
+                                            QStringLiteral("folder-blue"),
+                                            QStringLiteral("inode-directory"),
+                                            QStringLiteral("folder-violet"),
+                                            QStringLiteral("folder-grey")};
+    QList<QPair<KLocalizedString, QString>> ordered;
+    for (const QString &iconName : finderOrder) {
+        for (const auto &icon : icons) {
+            if (icon.second == iconName) {
+                ordered.append(icon);
+            }
+        }
+    }
+    for (const auto &icon : icons) {
+        if (!finderOrder.contains(icon.second) && icon.second != QLatin1String("folder-cyan") && icon.second != QLatin1String("folder-brown")) {
+            ordered.append(icon);
+        }
+    }
+    return ordered;
+}
+#endif
 }
 
 SetFolderIconItemAction::SetFolderIconItemAction(QObject *parent)
@@ -50,7 +102,18 @@ void SetFolderIconItemAction::setFolderIcon(bool check)
 
     action->setChecked(check);
 
-    auto iconName = action->icon().name();
+    auto iconName = action->data().toString();
+
+#ifdef Q_OS_MACOS
+    // A colour Finder also has becomes a Finder tag rather than a .directory icon, so that both file
+    // managers show it, and Default removes the colour tags. The Breeze folder takes the tag
+    // colour as its accent, so the icon itself goes back to the default one.
+    const int finderColor = finderColorIndex(iconName);
+    if (finderColor || isDefaultFolderIcon(iconName)) {
+        KItemListMacColors::setTagColorIndex(m_localUrl.toLocalFile(), check ? finderColor : 0);
+        iconName.clear();
+    }
+#endif
 
     // Apply custom folder icon, if applicable.
     const QString fileName = m_localUrl.toLocalFile() + QLatin1String("/.directory");
@@ -68,7 +131,7 @@ void SetFolderIconItemAction::setFolderIcon(bool check)
 
     desktopFile.sync();
 
-#ifdef QT_DBUS_LIB
+#ifdef HAVE_KDIRNOTIFY
     if (QDBusConnection::sessionBus().isConnected()) {
         org::kde::KDirNotify::emitFilesChanged({m_url});
         return;
@@ -238,11 +301,36 @@ QList<QAction *> SetFolderIconItemAction::actions(const KFileItemListProperties 
     QMenu *subMenu = new QMenu();
     auto action = new ButtonsWithSubMenuWidgetAction(subMenu, parentWidget);
 
+#ifdef Q_OS_MACOS
+    const QList<StringPair> menuIcons = inFinderOrder(icons);
+#else
+    const QList<StringPair> &menuIcons = icons;
+#endif
+
     int i = 0;
     QList<QAction *> actions;
-    const auto fileIconName = fileItem.iconName();
-    for (const auto &[name, iconName] : icons) {
+    auto fileIconName = fileItem.iconName();
+#ifdef Q_OS_MACOS
+    // Without an icon of its own, the folder shows the colour of its most recent colour tag.
+    if (isDefaultFolderIcon(fileIconName)) {
+        if (const int tagColor = KItemListMacColors::tagColorIndex(m_localUrl.toLocalFile())) {
+            for (const auto &[name, iconName] : menuIcons) {
+                if (finderColorIndex(iconName) == tagColor) {
+                    fileIconName = iconName;
+                    break;
+                }
+            }
+        }
+    }
+#endif
+    for (const auto &[name, iconName] : menuIcons) {
         auto icon = QIcon::fromTheme(iconName);
+#ifdef Q_OS_MACOS
+        // A Finder colour is shown as the folder Finder draws: the default folder in the tag colour.
+        if (const int finderColor = finderColorIndex(iconName)) {
+            icon = KItemViewsUtils::iconWithAccent(QStringLiteral("inode-directory"), KItemListMacColors::tagColor(finderColor));
+        }
+#endif
         if (icon.isNull()) {
             qCWarning(DolphinDebug) << "SetFolderIconItemAction Missing icon:" << iconName;
             continue;
@@ -255,6 +343,7 @@ QList<QAction *> SetFolderIconItemAction::actions(const KFileItemListProperties 
         // it, leaving the buttons in the still-visible widget connected to dangling QActions.
         QAction *folderIconAction = new QAction(KLocalizedString(name).toString(), action);
         folderIconAction->setIcon(icon);
+        folderIconAction->setData(iconName);
         folderIconAction->setCheckable(true);
         folderIconAction->setChecked(fileIconName == iconName);
         folderIconAction->setToolTip(i18nc("@label %1 is a folder icon name (Red, Music...) etc", "Set folder icon to %1", folderIconAction->iconText()));

@@ -195,6 +195,8 @@ if(APPLE)
         kitemviews/private/kitemlistmaccolors.h
         kitemviews/private/kitemlistmacdrag.mm
         kitemviews/private/kitemlistmacdrag.h
+        views/dolphinmacopenwith.mm
+        views/dolphinmacopenwith.h
     )
     target_link_libraries(dolphinprivate PRIVATE "-framework AppKit" "-framework UniformTypeIdentifiers")
 endif()
@@ -491,6 +493,11 @@ qt_add_dbus_interface(dolphin_dbus_SRCS panels/terminal/org.kde.KIOFuse.VFS.xml 
 target_sources(dolphinstatic PRIVATE
     ${dolphin_dbus_SRCS}
 )
+
+if(APPLE)
+    # The application icon, which the Breeze theme on macOS does not have.
+    target_sources(dolphinstatic PRIVATE dolphinmacos.qrc)
+endif()
 
 target_link_libraries(dolphinstatic
     dolphinprivate

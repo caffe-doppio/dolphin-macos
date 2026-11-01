@@ -160,6 +160,13 @@ if(HAVE_BALOO)
         LINK_LIBRARIES dolphinprivate dolphinstatic Qt6::Test)
 endif()
 
+if(APPLE)
+    # DolphinMacOpenWithTest
+    ecm_add_test(dolphinmacopenwithtest.mm
+        TEST_NAME dolphinmacopenwithtest
+        LINK_LIBRARIES dolphinprivate Qt6::Test "-framework AppKit")
+endif()
+
 find_gem(test-unit)
 set_package_properties(Gem_test-unit PROPERTIES
     TYPE RECOMMENDED
@@ -167,6 +174,13 @@ set_package_properties(Gem_test-unit PROPERTIES
 if (Gem_test-unit_FOUND)
     add_test(NAME servicemenutest
     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../settings/contextmenu/test/test_run.rb)
+endif()
+
+if(APPLE)
+    # KItemListMacColorsTest
+    ecm_add_test(kitemlistmaccolorstest.mm LINK_LIBRARIES dolphinprivate Qt6::Test "-framework AppKit")
+    target_link_options(kitemlistmaccolorstest PRIVATE
+        "LINKER:-sectcreate,__TEXT,__info_plist,${CMAKE_CURRENT_SOURCE_DIR}/kitemlistmaccolorstest-info.plist")
 endif()
 
 # macOS has no session bus, and libdbus waits for one without a timeout: the

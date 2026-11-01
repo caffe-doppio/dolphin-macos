@@ -27,6 +27,7 @@ Upstream Dolphin on @KDE Frameworks 6, with the fixes it needs on macOS: it laun
 - [Requirements](#requirements)
 - [Build and install](#build-and-install)
 - [Terminal](#terminal) · [Embedded panel](#embedded-panel-f4) · [Open Terminal](#open-terminal)
+- [Folder colours](#folder-colours)
 - [Make Dolphin the default file viewer](#make-dolphin-the-default-file-viewer)
 - [Known issues](#known-issues)
 - [Troubleshooting](#troubleshooting)
@@ -52,9 +53,11 @@ This repository fixes those three problems, so you can have Dolphin and its embe
 | ✅ | **`open <folder>`, `open -R <file>`** | After setting Dolphin as the [default file viewer](#make-dolphin-the-default-file-viewer) and logging out. |
 | ✅ | **Compress…** | `ditto`, `zip`, `tar`, and `7z` when installed. Single-item zips keep extended attributes, quarantine flag included. |
 | ✅ | **Places, removable media** | Solid's IOKit backend. |
+| ✅ | **Drop on the Trash in the Dock** | Same as Move to Trash. |
+| ✅ | **Folder colours, as in Finder** | System folder colour and Finder colour tags, both ways: see [Folder colours](#folder-colours). |
 | ♻️ | **Open With** | Type an app path **without** the trailing slash; "Remember application association" has no effect. Both are upstream KIO bugs. |
 | ♻️ | **Screen reader announcements in the file view** | Disabled to work around a crash in Qt's Cocoa accessibility bridge. Menus, toolbars and dialogs still work with VoiceOver. |
-| ❌ | **Content search, tags, information panel** | They depend on Baloo, which is Linux-only. |
+| ❌ | **Content search, tag names and filtering, information panel** | They depend on Baloo, which is Linux-only. Tag colours work without it. |
 
 Tested on an iMac M1, macOS 26.7.1, Xcode 27.1, Qt 6.12. The port it builds on was tested on macOS 26.5.2. Intel Macs are untested.
 
@@ -152,7 +155,17 @@ Upstream Dolphin asks `KTerminalLauncherJob` for a terminal, which looks for a `
 
 Apps are looked for in `/Applications`, `~/Applications` and `/System/Applications/Utilities`. To prefer another one, reorder `emulators` in `launchSystemTerminal()`, in [`src/dolphinmainwindow.cpp`](src/dolphinmainwindow.cpp).
 
-Only Konsole and Terminal.app have been tried.
+## Folder colours
+
+Dolphin keeps Breeze's folder icons, which cover far more cases than macOS's (`folder-git`, `folder-docker`…), and gives them the colour Finder shows:
+
+| The folder has… | Colour in Dolphin |
+| --- | --- |
+| nothing special | the system folder colour, from **System Settings › Appearance** |
+| Finder colour tags | the colour of the most recently added one |
+| an icon chosen in Dolphin with a colour of its own | that icon's colour (Finder does not show it) |
+
+The colour menu in Dolphin's context menu offers Finder's colours, in Finder's order. A colour picked there becomes the folder's Finder colour tag, and **Default** removes the colour tags: tags with other names, such as "Work", stay. Emblem icons (Development, Music…) are KDE-only and stored in the folder's `.directory` file; they take the folder's colour too.
 
 ## Make Dolphin the default file viewer
 
@@ -175,9 +188,10 @@ The Finder still owns the Desktop, and apps that call the Finder by name ("Show 
 ## Known issues
 
 - **Open With rejects app paths ending with `/`.** macOS returns `/Applications/Zed.app/` for a bundle, and KIO takes the text after the last `/` as the executable name. Type the path without the slash. Upstream KIO bug.
-- **"Remember application association" does nothing.** KIO writes freedesktop `mimeapps.list`, which macOS never reads. Use Finder's Get Info › Open with, or [`duti`](https://github.com/moretension/duti).
+- **"Remember application association" does nothing.** KIO writes freedesktop `mimeapps.list`, which macOS never reads. Use Properties › Open with › Change…, Finder's Get Info › Open with, or [`duti`](https://github.com/moretension/duti).
 - **The window may open behind other apps** when Dolphin is started by a background process rather than by you 💭.
 - **No file view announcements for screen readers**, see [What works](#what-works).
+- **Finder tag changes need the folder to be reopened**, and the Properties dialog ignores tags: see [Folder colours](#folder-colours).
 
 The port's original notes go into each of these in detail: [`macos.md`](macos.md). They mention a `setdefault` helper that is not part of this repository.
 
@@ -208,6 +222,15 @@ Based on upstream `master` at 26.11.70.
 | Compress action without Ark | `src/dolphincontextmenu.cpp` |
 | Open Terminal through macOS apps | `src/dolphinmainwindow.cpp` |
 | Terminal.app found in `/System/Applications/Utilities`, Konsole first, `--args` before directory flags | `src/dolphinmainwindow.cpp` |
+| Information dock not created without Baloo, so it no longer covers the toolbar | `src/dolphinmainwindow.cpp` |
+| `handleUrl()` finds the type first, so a folder stays in the view | `src/dolphinmainwindow.cpp` |
+| Files dropped on the Dock's Trash go to the trash | `src/kitemviews/`, `src/views/dolphinview.cpp` |
+| Folder icons take Finder's colour: system folder colour, or the most recent Finder tag | `src/kitemviews/`, `src/main.cpp` |
+| Colour menu writes Finder colour tags, in Finder's colours and order | `src/itemactions/setfoldericonitemaction.cpp`, `src/kitemviews/private/kitemlistmaccolors.mm` |
+| System frameworks use the user's language (`CFBundleAllowMixedLocalizations`), so Finder tags match by name | `src/dolphin.app.in/Contents/Info.plist.in` |
+| Folder icon and colour changes refresh the view without D-Bus | `src/itemactions/setfoldericonitemaction.cpp` |
+| Properties dialog shows and changes the default application through LaunchServices | `src/views/dolphinmacopenwith.mm` |
+| Tests run without a D-Bus session bus; macOS job in GitHub Actions | `src/tests/CMakeLists.txt`, `.github/workflows/macos.yml` |
 
 All changes are behind `Q_OS_MACOS` or `APPLE`: the Linux build is meant to be unchanged, but nobody has built it from this branch yet.
 

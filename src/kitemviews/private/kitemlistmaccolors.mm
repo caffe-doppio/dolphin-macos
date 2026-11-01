@@ -6,7 +6,9 @@
 
 #include "kitemlistmaccolors.h"
 
+#include <QApplication>
 #include <QFile>
+#include <QPalette>
 
 #import <AppKit/AppKit.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
@@ -68,6 +70,46 @@ QColor KItemListMacColors::systemFolderColor()
     // ponytail: read once, so a change in System Settings shows after Dolphin restarts.
     static const QColor color = sampleSystemFolderColor();
     return color;
+}
+
+namespace
+{
+void setApplicationAccent()
+{
+    const QColor color = KItemListMacColors::systemFolderColor();
+    // The Breeze style draws the active tab line, scroll bars, check boxes, focus frames and
+    // selections with Highlight, which the colour scheme sets to its own blue.
+    const QColor highlight = toQColor(NSColor.controlAccentColor);
+    QPalette palette = QApplication::palette();
+    // setPalette() sends ApplicationPaletteChange again: stop once both colours are in place.
+    if (palette.color(QPalette::Accent) == color && palette.color(QPalette::Highlight) == highlight) {
+        return;
+    }
+    palette.setColor(QPalette::Accent, color);
+    palette.setColor(QPalette::Highlight, highlight);
+    QApplication::setPalette(palette);
+}
+
+// A colour scheme change, such as dark mode, replaces the whole application palette.
+class ApplicationPaletteFollower : public QObject
+{
+public:
+    using QObject::QObject;
+
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (watched == qApp && event->type() == QEvent::ApplicationPaletteChange) {
+            setApplicationAccent();
+        }
+        return false;
+    }
+};
+}
+
+void KItemListMacColors::useSystemFolderColorAsAccent()
+{
+    setApplicationAccent();
+    qApp->installEventFilter(new ApplicationPaletteFollower(qApp));
 }
 
 int KItemListMacColors::tagColorIndex(const QString &localPath)
@@ -132,4 +174,38 @@ QColor KItemListMacColors::tagColor(int index)
         }];
         return color;
     }
+}
+
+bool KItemListMacColors::setTagColorIndex(const QString &localPath, int index)
+{
+    bool written;
+    @autoreleasepool {
+        // Finder's colour tags carry the names of its colour labels ("Red", localised).
+        // ponytail: a colour tag renamed in Finder is seen as a plain tag and kept.
+        NSArray<NSString *> *colorNames = NSWorkspace.sharedWorkspace.fileLabels;
+        NSURL *url = [NSURL fileURLWithPath:localPath.toNSString()];
+        NSArray<NSString *> *current = nil;
+        [url getResourceValue:&current forKey:NSURLTagNamesKey error:nil];
+
+        NSMutableArray<NSString *> *tags = [NSMutableArray array];
+        for (NSString *tag in current) {
+            if (![colorNames containsObject:tag]) {
+                [tags addObject:tag];
+            }
+        }
+        if (index >= 1 && index <= 7 && index < static_cast<int>(colorNames.count)) {
+            [tags addObject:colorNames[index]];
+        }
+        // Through NSURL rather than the extended attribute itself: macOS resolves each name to
+        // its colour index and keeps the legacy Finder label in com.apple.FinderInfo in step.
+        written = [url setResourceValue:tags forKey:NSURLTagNamesKey error:nil];
+    }
+    Q_EMIT KItemListMacTagNotifier::instance()->tagsChanged(localPath);
+    return written;
+}
+
+KItemListMacTagNotifier *KItemListMacTagNotifier::instance()
+{
+    static KItemListMacTagNotifier notifier;
+    return &notifier;
 }
