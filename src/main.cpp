@@ -19,6 +19,8 @@
 #endif
 #ifdef Q_OS_MACOS
 #include "kitemviews/private/kitemlistmaccolors.h"
+
+#include <KColorSchemeManager>
 #endif
 
 #include <KAboutData>
@@ -160,6 +162,10 @@ int main(int argc, char **argv)
     const QString bundlePlugins = QCoreApplication::applicationDirPath() + QStringLiteral("/../PlugIns");
     QCoreApplication::removeLibraryPath(bundlePlugins);
     QCoreApplication::addLibraryPath(bundlePlugins);
+    // Apply the colour scheme before any window exists. Widgets keep the platform palette until
+    // the scheme's reaches them, and an item view copies its viewport's palette once, when it
+    // enters its scene: rows took macOS's opaque alternate grey instead of the scheme's.
+    KColorSchemeManager::instance();
     // Folder icons drawn outside the item views, as in the Places panel, take Finder's colour too,
     // and the widgets take the system accent colour instead of Breeze's blue.
     KItemListMacColors::useSystemFolderColorAsAccent();
